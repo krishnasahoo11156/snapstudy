@@ -13,11 +13,6 @@ import {
   HelpCircle,
   Flame,
   Sparkles,
-  Hand,
-  Move,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
   Folder,
 } from "../ui/Icons";
 
@@ -324,17 +319,7 @@ export default function StudyCanvas() {
             </div>
           </div>
 
-          {/* Tip of the day widget */}
-          <div className="absolute bottom-6 right-20 bg-white rounded-2xl shadow-card border border-paper-border p-4 w-56 animate-fade-in relative overflow-hidden">
-            <p className="text-xs font-semibold text-ink-secondary mb-2">Tip of the day</p>
-            <p className="text-sm text-ink leading-relaxed">
-              "The more you review,<br/>the more you remember."
-            </p>
-            {/* Decorative leaf icon */}
-            <div className="absolute bottom-2 right-2 text-accent/20">
-              <Sparkles className="w-8 h-8" />
-            </div>
-          </div>
+
         </div>
 
         {/* Create New floating panel */}
@@ -389,24 +374,7 @@ export default function StudyCanvas() {
           </div>
         </div>
 
-        {/* Canvas toolbar (right edge) */}
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-1 bg-white rounded-2xl shadow-panel border border-paper-border p-1.5">
-          {[
-            { icon: <Hand className="w-4 h-4" />, title: "Pan" },
-            { icon: <Move className="w-4 h-4" />, title: "Select" },
-            { icon: <ZoomIn className="w-4 h-4" />, title: "Zoom In" },
-            { icon: <ZoomOut className="w-4 h-4" />, title: "Zoom Out" },
-            { icon: <Maximize2 className="w-4 h-4" />, title: "Fit to screen" },
-          ].map((tool, i) => (
-            <button
-              key={i}
-              title={tool.title}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-paper-warm text-ink-secondary text-sm font-medium transition-colors"
-            >
-              {tool.icon}
-            </button>
-          ))}
-        </div>
+
       </div>
 
       {/* New Folder Modal */}
