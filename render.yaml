@@ -25,10 +25,10 @@ services:
         sync: false              # Set manually in Render dashboard
 
       - key: MODEL_BATCH
-        value: gemini-1.5-flash
+        value: gemini-2.5-flash
 
       - key: MODEL_LIVE
-        value: gemini-1.5-flash-8b
+        value: gemini-2.5-flash
 
       # ── CORS ─────────────────────────────────────────────────────────────
       # Set CLIENT_ORIGIN to your Vercel URL after first deploy

@@ -23,10 +23,16 @@ function getGenAI() {
  */
 export function getModel(tier) {
   const genAI = getGenAI();
-  const modelName =
+  const envModel =
     tier === "batch"
-      ? process.env.MODEL_BATCH || "gemini-2.0-flash"
-      : process.env.MODEL_LIVE || "gemini-2.0-flash-lite";
+      ? process.env.MODEL_BATCH
+      : process.env.MODEL_LIVE;
+
+  // Use configured env var if present and not outdated gemini-1.5-flash/2.0-flash, else use gemini-2.5-flash
+  const modelName =
+    envModel && !envModel.startsWith("gemini-1.5") && !envModel.startsWith("gemini-2.0")
+      ? envModel
+      : "gemini-2.5-flash";
 
   return genAI.getGenerativeModel({
     model: modelName,
