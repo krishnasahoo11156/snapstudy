@@ -46,7 +46,7 @@ export function getModel(tier, overrideModel = null, callType = "default") {
   const modelName =
     overrideModel ||
     envModel ||
-    (tier === "batch" ? "gemini-3.5-flash" : "gemini-3.5-flash-lite");
+    (tier === "batch" ? "gemini-2.5-flash" : "gemini-2.0-flash");
 
   return genAI.getGenerativeModel({
     model: modelName,
@@ -83,8 +83,8 @@ export function parseGeminiJson(text) {
 export async function generateWithModelFallback(promptParts, tier = "batch", callType = "default") {
   const candidateModels =
     tier === "batch"
-      ? ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]
-      : ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.1-flash-lite"];
+      ? ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+      : ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"];
 
   let lastError;
   for (const modelName of candidateModels) {
