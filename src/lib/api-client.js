@@ -98,23 +98,27 @@ export const api = {
     if (res.success && res.data?.regions && res.data?.cards) {
       return res;
     }
-    // If it was a network error or 5xx, do not duplicate the failure with 2 sequential calls
-    if (!res.success && res.error && (res.error.includes("Failed to fetch") || res.error.includes("timed out"))) {
-      return res;
+
+    // If fast unified ingest hit a temporary issue, attempt 2-step fallback
+    try {
+      const detectRes = await api.detectRegions(imageBase64);
+      if (detectRes.success && detectRes.data?.regions) {
+        const cardsRes = await api.generateCards(detectRes.data.regions, imageBase64);
+        if (cardsRes.success && cardsRes.data?.cards) {
+          return {
+            success: true,
+            data: {
+              regions: detectRes.data.regions,
+              cards: cardsRes.data.cards,
+            },
+          };
+        }
+      }
+    } catch {
+      // ignore and return primary error
     }
 
-    // Fallback to 2-step pipeline if needed
-    const detectRes = await api.detectRegions(imageBase64);
-    if (!detectRes.success || !detectRes.data?.regions) return detectRes;
-    const cardsRes = await api.generateCards(detectRes.data.regions, imageBase64);
-    if (!cardsRes.success || !cardsRes.data?.cards) return cardsRes;
-    return {
-      success: true,
-      data: {
-        regions: detectRes.data.regions,
-        cards: cardsRes.data.cards,
-      },
-    };
+    return res;
   },
 
   /**
