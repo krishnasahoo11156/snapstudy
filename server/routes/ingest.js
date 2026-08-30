@@ -31,7 +31,7 @@ router.post("/", async (req, res) => {
     const text = await generateWithModelFallback([
       unifiedIngestionPrompt,
       { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } },
-    ], "batch");
+    ], "batch", "ingest");
     const parsed = parseGeminiJson(text);
 
     const rawRegions = Array.isArray(parsed.regions) ? parsed.regions : [];

@@ -30,7 +30,7 @@ router.post("/", async (req, res) => {
     const text = await generateWithModelFallback([
       regionDetectionPrompt,
       { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } },
-    ], "batch");
+    ], "batch", "detect");
     const parsed = parseGeminiJson(text);
 
     if (!parsed.regions || !Array.isArray(parsed.regions)) {

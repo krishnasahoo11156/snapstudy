@@ -84,7 +84,7 @@ router.post("/", async (req, res) => {
       console.warn("[remediate] No crop or image provided — using text-only fallback");
     }
 
-    const text = await generateWithModelFallback(contentParts, "live");
+    const text = await generateWithModelFallback(contentParts, "live", "remediate");
     const parsed = parseGeminiJson(text);
 
     const data = {

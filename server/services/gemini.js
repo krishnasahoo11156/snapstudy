@@ -1,28 +1,43 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-let genAIInstance = null;
+const genAIInstances = new Map();
 
-function getGenAI() {
-  const key = process.env.GEMINI_API_KEY;
+/**
+ * Get GoogleGenerativeAI instance for a specific call type or key.
+ * @param {"detect"|"generate"|"remediate"|"default"} [callType="default"]
+ * @returns {GoogleGenerativeAI}
+ */
+export function getGenAI(callType = "default") {
+  let key = process.env.GEMINI_API_KEY;
+
+  if (callType === "detect" || callType === "ingest") {
+    key = process.env.GEMINI_API_KEY_DETECT || key;
+  } else if (callType === "generate") {
+    key = process.env.GEMINI_API_KEY_GENERATE || key;
+  } else if (callType === "remediate") {
+    key = process.env.GEMINI_API_KEY_REMEDIATE || key;
+  }
+
   if (!key) {
-    throw new Error("GEMINI_API_KEY environment variable is not configured.");
+    throw new Error(`Gemini API key is not configured for call type '${callType}'.`);
   }
-  if (!genAIInstance) {
-    genAIInstance = new GoogleGenerativeAI(key);
+
+  if (!genAIInstances.has(key)) {
+    genAIInstances.set(key, new GoogleGenerativeAI(key));
   }
-  return genAIInstance;
+  return genAIInstances.get(key);
 }
 
 /**
- * Get a configured Gemini model instance.
+ * Get a configured Gemini model instance with dedicated API key per call.
  *
  * @param {"batch"|"live"} tier
- *   - "batch" → MODEL_BATCH env var (e.g. gemini-1.5-flash) — for region detection & card generation
- *   - "live"  → MODEL_LIVE env var  (e.g. gemini-1.5-flash-8b) — for low-latency remediation
+ * @param {string|null} [overrideModel=null]
+ * @param {"detect"|"generate"|"remediate"|"default"} [callType="default"]
  * @returns {import("@google/generative-ai").GenerativeModel}
  */
-export function getModel(tier, overrideModel = null) {
-  const genAI = getGenAI();
+export function getModel(tier, overrideModel = null, callType = "default") {
+  const genAI = getGenAI(callType);
   const envModel =
     tier === "batch"
       ? process.env.MODEL_BATCH
@@ -62,9 +77,10 @@ export function parseGeminiJson(text) {
  * Call Gemini with automatic model failover if the primary model is busy or hits quota.
  * @param {any[]} promptParts
  * @param {"batch"|"live"} tier
+ * @param {"detect"|"generate"|"remediate"|"default"} [callType="default"]
  * @returns {Promise<string>}
  */
-export async function generateWithModelFallback(promptParts, tier = "batch") {
+export async function generateWithModelFallback(promptParts, tier = "batch", callType = "default") {
   const candidateModels =
     tier === "batch"
       ? ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]
@@ -73,11 +89,11 @@ export async function generateWithModelFallback(promptParts, tier = "batch") {
   let lastError;
   for (const modelName of candidateModels) {
     try {
-      const model = getModel(tier, modelName);
+      const model = getModel(tier, modelName, callType);
       const result = await model.generateContent(promptParts);
       return result.response.text();
     } catch (err) {
-      console.warn(`[gemini] Model ${modelName} failed (${err?.message || err}). Trying fallback…`);
+      console.warn(`[gemini][${callType}] Model ${modelName} failed (${err?.message || err}). Trying fallback…`);
       lastError = err;
     }
   }

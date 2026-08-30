@@ -34,7 +34,7 @@ router.post("/", async (req, res) => {
     const text = await generateWithModelFallback([
       prompt,
       { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } },
-    ], "batch");
+    ], "batch", "generate");
     const parsed = parseGeminiJson(text);
 
     if (!parsed.cards || !Array.isArray(parsed.cards)) {
