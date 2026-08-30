@@ -82,7 +82,7 @@ export default function CaptureScreen() {
       const cards = cardsRes.data.cards;
       setGeneratedCards(cards);
 
-      // 5. Persist to Firestore
+      // 5. Persist to Firestore / Local Cache
       setCurrentStep("Saving photo and cards to your study deck…");
       const photoId = `photo_${Date.now()}`;
       const record = {
@@ -95,7 +95,8 @@ export default function CaptureScreen() {
         cards,
       };
 
-      await savePhotoRecord(record);
+      // Save locally and sync in background without blocking UI render
+      savePhotoRecord(record).catch((e) => console.warn("Background save error:", e));
 
       setFlowState("done");
       setCurrentStep("");

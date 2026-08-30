@@ -12,7 +12,7 @@ const LOCAL_STORAGE_QUIZZES_KEY = "snapstudy_cached_quizzes";
  * @returns {Promise<void>}
  */
 export async function savePhotoRecord(record) {
-  // Always update local cache for instant offline access
+  // 1. Instant local persistence
   try {
     const existing = JSON.parse(localStorage.getItem(LOCAL_STORAGE_PHOTOS_KEY) || "[]");
     const updated = [record, ...existing.filter((p) => p.id !== record.id)];
@@ -21,15 +21,20 @@ export async function savePhotoRecord(record) {
     console.warn("Failed to cache photo record locally:", e);
   }
 
-  if (FIREBASE_CONFIGURED && db) {
+  // 2. Cloud Firestore sync with 2.5s safety timeout
+  if (FIREBASE_CONFIGURED && db && record.uid && record.uid !== "guest_user") {
     try {
       const docRef = doc(db, "photos", record.id);
-      await setDoc(docRef, {
+      const writePromise = setDoc(docRef, {
         ...record,
         createdAt: record.createdAt instanceof Date ? record.createdAt.toISOString() : record.createdAt,
       });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Firestore sync timeout (offline/pending)")), 2500)
+      );
+      await Promise.race([writePromise, timeoutPromise]);
     } catch (err) {
-      console.warn("[Firestore] Failed to save photo record to cloud, saved locally:", err);
+      console.warn("[Firestore] Cloud sync skipped/failed, saved locally:", err?.message || err);
     }
   }
 }
