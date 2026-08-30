@@ -1,10 +1,34 @@
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "./lib/firebase";
+import { auth, FIREBASE_CONFIGURED } from "./lib/firebase";
 import ResponsiveShell from "./components/layout/ResponsiveShell";
 import AuthScreen from "./components/auth/AuthScreen";
 import { useOffline } from "./hooks/useOffline";
 
-function App() {
+// ── Demo Mode (no Firebase keys) ─────────────────────────────────────────────
+// Rendered when VITE_FIREBASE_* are missing. Skips auth entirely.
+function DemoApp() {
+  const isOffline = useOffline();
+  return (
+    <div className="min-h-screen bg-slate-900 text-slate-100">
+      <div className="fixed top-0 inset-x-0 z-50 flex items-center justify-center gap-2 bg-violet-600/90 backdrop-blur-sm py-1.5 px-4 text-white text-xs font-semibold">
+        <span>🔧</span>
+        <span>Demo Mode — add Firebase keys to root .env to enable auth</span>
+      </div>
+      {isOffline && (
+        <div className="fixed top-8 inset-x-0 z-40 flex items-center justify-center gap-2 bg-amber-500/90 backdrop-blur-sm py-2 px-4 text-slate-900 text-sm font-semibold">
+          <span>📴</span><span>Offline mode — studying cached cards</span>
+        </div>
+      )}
+      <div className="pt-8">
+        <ResponsiveShell />
+      </div>
+    </div>
+  );
+}
+
+// ── Authenticated App (Firebase configured) ───────────────────────────────────
+// useAuthState is ONLY called here — never with a null auth instance.
+function AuthenticatedApp() {
   const [user, loading] = useAuthState(auth);
   const isOffline = useOffline();
 
@@ -22,13 +46,10 @@ function App() {
     );
   }
 
-  if (!user) {
-    return <AuthScreen />;
-  }
+  if (!user) return <AuthScreen />;
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100">
-      {/* Offline Banner */}
       {isOffline && (
         <div className="fixed top-0 inset-x-0 z-50 flex items-center justify-center gap-2 bg-amber-500/90 backdrop-blur-sm py-2 px-4 text-slate-900 text-sm font-semibold">
           <span>📴</span>
@@ -40,4 +61,8 @@ function App() {
   );
 }
 
-export default App;
+// ── Root export — picks the right app based on Firebase config ────────────────
+export default function App() {
+  return FIREBASE_CONFIGURED ? <AuthenticatedApp /> : <DemoApp />;
+}
+
