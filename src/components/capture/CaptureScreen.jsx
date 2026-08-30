@@ -49,7 +49,7 @@ export default function CaptureScreen() {
 
       // 1. Compress Image
       setCurrentStep("Compressing image…");
-      const compressed = await compressImage(file, 1920, 1920, 0.85);
+      const compressed = await compressImage(file, 1280, 1280, 0.78);
       setPreviewUrl(compressed.dataUrl);
       const cleanBase64 = compressed.dataUrl.replace(/^data:image\/\w+;base64,/, "");
       setRawBase64(cleanBase64);

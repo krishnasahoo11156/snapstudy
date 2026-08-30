@@ -29,13 +29,17 @@ const corsOptions = {
     // Allow non-browser requests (e.g. curl, server-to-server, health checks)
     if (!origin) return callback(null, true);
 
-    // Allow exact allowed origins and any *.vercel.app preview URLs
-    if (ALLOWED_ORIGINS.includes(origin) || origin.endsWith(".vercel.app")) {
+    const cleanOrigin = origin.replace(/\/+$/, "");
+    if (
+      ALLOWED_ORIGINS.some((allowed) => cleanOrigin === allowed.replace(/\/+$/, "")) ||
+      cleanOrigin.endsWith(".vercel.app") ||
+      cleanOrigin.includes("vercel.app")
+    ) {
       return callback(null, true);
     }
 
     console.warn(`[CORS Blocked] Origin not allowed: ${origin}`);
-    return callback(new Error(`CORS Error: Origin ${origin} not allowed`));
+    return callback(null, false);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
@@ -70,6 +74,17 @@ app.get("/health", (_req, res) =>
 
 // ── 404 fallthrough ─────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ success: false, error: "Not found" }));
+
+// ── Global Error Handler (guarantees CORS headers even on uncaught errors) ──
+app.use((err, req, res, _next) => {
+  console.error("[Unhandled Server Error]", err);
+  const origin = req.headers.origin;
+  if (origin) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Access-Control-Allow-Credentials", "true");
+  }
+  res.status(500).json({ success: false, error: err?.message || "Internal server error" });
+});
 
 // ── Start ───────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
