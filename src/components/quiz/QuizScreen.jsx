@@ -7,6 +7,7 @@ import RemediationScreen from "../remediation/RemediationScreen";
 import { generateMockRemediation, generateMockRegions } from "../../data/mock-data";
 import { api } from "../../lib/api-client";
 import { saveQuizSession } from "../../lib/firestore";
+import { Trophy, ThumbsUp, Award, X, Check, Lightbulb } from "../ui/Icons";
 
 /** Route to correct flashcard component by card_type */
 function CardRenderer({ card, onFlipped }) {

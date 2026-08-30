@@ -41,7 +41,7 @@ export default function FolderCanvas() {
         {
           id: `c_${folder.id}`,
           name: folder.name,
-          icon: "camera",
+          icon: folder.icon || "camera",
           itemCount: folder.cards.length,
           lastStudied: "Today",
           color: folder.color || "yellow",

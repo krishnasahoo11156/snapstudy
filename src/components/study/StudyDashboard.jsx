@@ -81,7 +81,7 @@ export default function StudyDashboard() {
 
   useEffect(() => {
     loadDecks();
-  }, [user]);
+  }, [uid]);
 
   const confirmDeleteDeck = async () => {
     if (!deckToDelete) return;

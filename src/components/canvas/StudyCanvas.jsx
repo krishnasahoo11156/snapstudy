@@ -36,7 +36,7 @@ function mergeScannedNotesWithFolders(baseFolders, records) {
         name: rec.regions?.[0]?.label
           ? rec.regions[0].label
           : (rec.fileName || `Note Scan #${records.length - idx}`),
-        icon: "camera",
+        icon: rec.isDocument || rec.fileType === "pdf" || rec.fileType === "text" ? "file" : "camera",
         itemCount: rec.cards?.length || 1,
         lastStudied: "Just now",
         color: ["yellow", "mint", "peach", "lavender", "blue"][idx % 5],

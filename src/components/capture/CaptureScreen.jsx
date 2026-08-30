@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useAuth } from "../../hooks/useAuth";
+import { useNav } from "../../context/NavContext";
 import { compressImage, uploadPhotoToStorage } from "../../lib/storage";
 import { savePhotoRecord, deletePhotoRecord } from "../../lib/firestore";
 import { api, isMockMode, setMockMode } from "../../lib/api-client";
@@ -15,6 +16,7 @@ import {
   Play,
   MapPin,
   Calculator,
+  Layers,
 } from "../ui/Icons";
 
 const CARD_TYPE_BADGES = {
@@ -25,6 +27,7 @@ const CARD_TYPE_BADGES = {
 };
 
 export default function CaptureScreen({ initialMode = "auto" }) {
+  const { navigate } = useNav();
   const [user] = useAuth();
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -104,7 +107,7 @@ export default function CaptureScreen({ initialMode = "auto" }) {
 
       setIsDocument(isPdf || isText);
 
-      const uid = user?.uid || "guest_user";
+      const uid = user?.id || user?.uid || "guest_user";
       let ingestPayload;
       let recordPreviewUrl = null;
 
@@ -506,18 +509,66 @@ export default function CaptureScreen({ initialMode = "auto" }) {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setQuizActive(true)}
                 id="start-quiz-btn"
-                className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-accent-hover transition-all"
+                className="flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-accent-hover transition-all"
               >
                 <Play className="w-3.5 h-3.5" />
                 <span>Start Quiz ({generatedCards.length} Cards)</span>
               </button>
               <button
+                onClick={() =>
+                  navigate("notes", {
+                    activeTab: "flashcards",
+                    chapter: {
+                      id: currentPhotoId || `note_${Date.now()}`,
+                      name: fileName || "Study Material",
+                      cards: generatedCards,
+                      regions: detectedRegions,
+                      photoUrl: previewUrl,
+                      isScannedNote: true,
+                    },
+                    breadcrumb: [
+                      { label: "My Space", page: "canvas" },
+                      { label: fileName || "Study Notes" },
+                    ],
+                  })
+                }
+                id="study-flashcards-btn"
+                className="flex items-center gap-1.5 rounded-xl border border-paper-border bg-white px-3.5 py-2 text-xs font-semibold text-ink hover:bg-paper-warm transition shadow-sm"
+              >
+                <Layers className="w-3.5 h-3.5 text-purple-600" />
+                <span>Study Flashcards</span>
+              </button>
+              <button
+                onClick={() =>
+                  navigate("notes", {
+                    activeTab: "notes",
+                    chapter: {
+                      id: currentPhotoId || `note_${Date.now()}`,
+                      name: fileName || "Study Material",
+                      cards: generatedCards,
+                      regions: detectedRegions,
+                      photoUrl: previewUrl,
+                      isScannedNote: true,
+                    },
+                    breadcrumb: [
+                      { label: "My Space", page: "canvas" },
+                      { label: fileName || "Study Notes" },
+                    ],
+                  })
+                }
+                id="open-notes-btn"
+                className="flex items-center gap-1.5 rounded-xl border border-paper-border bg-white px-3.5 py-2 text-xs font-medium text-ink hover:bg-paper-warm transition shadow-sm"
+              >
+                <FileText className="w-3.5 h-3.5 text-blue-600" />
+                <span>Open in Notes</span>
+              </button>
+              <button
                 onClick={handleReset}
-                className="rounded-xl border border-paper-border bg-white px-3.5 py-2 text-xs font-medium text-ink hover:bg-paper-warm transition shadow-sm"
+                className="rounded-xl border border-paper-border bg-white px-3.5 py-2 text-xs font-medium text-ink-secondary hover:bg-paper-warm transition shadow-sm"
               >
                 Upload Another
               </button>
