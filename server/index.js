@@ -15,26 +15,17 @@ dotenv.config({ path: join(__dirname, ".env") });
 const app = express();
 
 // ── Middleware ──────────────────────────────────────────────────────────────
-const ALLOWED_ORIGINS = [
-  "http://localhost:5173",
-  "http://localhost:5174",
-  process.env.CLIENT_ORIGIN,           // e.g. https://snapstudy.vercel.app
-].filter(Boolean);
-
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow server-to-server / curl with no origin
-      if (!origin) return callback(null, true);
-      // Allow any *.vercel.app preview deployment
-      if (origin.endsWith(".vercel.app")) return callback(null, true);
-      if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-      callback(new Error(`CORS: origin ${origin} not allowed`));
-    },
+    origin: true, // Reflect request origin (supports localhost, vercel preview & prod)
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
-app.use(express.json({ limit: "10mb" }));
+app.options("*", cors()); // Explicit preflight handling
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // ── Routes ──────────────────────────────────────────────────────────────────
 app.use("/api/detect-regions", detectRouter);
