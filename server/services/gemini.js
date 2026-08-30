@@ -1,6 +1,17 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+let genAIInstance = null;
+
+function getGenAI() {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) {
+    throw new Error("GEMINI_API_KEY environment variable is not configured.");
+  }
+  if (!genAIInstance) {
+    genAIInstance = new GoogleGenerativeAI(key);
+  }
+  return genAIInstance;
+}
 
 /**
  * Get a configured Gemini model instance.
@@ -11,6 +22,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
  * @returns {import("@google/generative-ai").GenerativeModel}
  */
 export function getModel(tier) {
+  const genAI = getGenAI();
   const modelName =
     tier === "batch"
       ? process.env.MODEL_BATCH || "gemini-1.5-flash"
@@ -23,6 +35,22 @@ export function getModel(tier) {
       temperature: 0.3,
     },
   });
+}
+
+/**
+ * Safely parse JSON from Gemini text response (stripping any accidental markdown fences).
+ * @param {string} text
+ * @returns {any}
+ */
+export function parseGeminiJson(text) {
+  if (!text) throw new Error("Empty response received from Gemini.");
+  const clean = text
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  return JSON.parse(clean);
 }
 
 /**
@@ -42,9 +70,10 @@ export async function withRetry(fn, maxRetries = 3) {
     } catch (err) {
       lastErr = err;
       const backoffMs = 1000 * Math.pow(2, attempt);
-      console.warn(`[gemini] Attempt ${attempt + 1} failed. Retrying in ${backoffMs}ms…`);
+      console.warn(`[gemini] Attempt ${attempt + 1} failed: ${err?.message || err}. Retrying in ${backoffMs}ms…`);
       await new Promise((r) => setTimeout(r, backoffMs));
     }
   }
   throw lastErr;
 }
+

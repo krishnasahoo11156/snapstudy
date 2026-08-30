@@ -8,33 +8,29 @@ import {
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
-/**
- * Set to true while Branch B is building UI against mock data.
- * Branch A flips this to false when real endpoints are ready.
- */
-const MOCK_MODE = true;
+// Default to real backend; can be toggled by UI or when offline
+let mockMode = false;
+
+export function setMockMode(enabled) {
+  mockMode = Boolean(enabled);
+}
+
+export function isMockMode() {
+  return mockMode;
+}
 
 /**
- * Core POST helper — returns mock data when MOCK_MODE is true,
- * otherwise calls the real Express endpoint.
+ * Core POST helper — calls real Express backend or returns mock data when mockMode is true.
  * @param {string} path
  * @param {object} body
  * @returns {Promise<ApiResponse>}
  */
 async function post(path, body) {
-  if (MOCK_MODE) {
-    // Simulate a short network delay to surface loading states in UI
-    await new Promise((r) => setTimeout(r, 600));
-
-    if (path.includes("detect-regions")) {
-      return { success: true, data: generateMockRegions() };
-    }
-    if (path.includes("generate-cards")) {
-      return { success: true, data: generateMockCards() };
-    }
-    if (path.includes("remediate")) {
-      return { success: true, data: generateMockRemediation() };
-    }
+  if (mockMode) {
+    await new Promise((r) => setTimeout(r, 500));
+    if (path.includes("detect-regions")) return { success: true, data: generateMockRegions() };
+    if (path.includes("generate-cards")) return { success: true, data: generateMockCards() };
+    if (path.includes("remediate")) return { success: true, data: generateMockRemediation() };
     return { success: false, error: "Unknown mock path" };
   }
 
@@ -44,12 +40,21 @@ async function post(path, body) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+
     if (!res.ok) {
       const errorText = await res.text();
-      return { success: false, error: `HTTP ${res.status}: ${errorText}` };
+      let parsedError;
+      try {
+        parsedError = JSON.parse(errorText)?.error;
+      } catch {
+        parsedError = errorText;
+      }
+      return { success: false, error: parsedError || `HTTP ${res.status}` };
     }
-    return res.json();
+
+    return await res.json();
   } catch (err) {
+    console.warn(`[api-client] Request to ${path} failed:`, err);
     return { success: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
@@ -58,6 +63,18 @@ async function post(path, body) {
  * Typed API surface — import this everywhere, never call fetch() directly.
  */
 export const api = {
+  /**
+   * Check backend health
+   */
+  checkHealth: async () => {
+    try {
+      const res = await fetch(`${API_BASE.replace(/\/api$/, "")}/health`);
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
   /**
    * Call 1: Detect note regions in a photo.
    * @param {string} imageBase64 - Base64-encoded JPEG
@@ -81,3 +98,4 @@ export const api = {
    */
   remediate: (payload) => post("/remediate", payload),
 };
+
