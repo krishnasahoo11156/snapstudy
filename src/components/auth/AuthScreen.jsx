@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, googleProvider } from "../../lib/firebase";
+import { supabase, SUPABASE_CONFIGURED } from "../../lib/supabase";
 import { useNav } from "../../context/NavContext";
 
 /**
  * AuthScreen — Login + Signup in a minimal white card.
  * Apple-quality onboarding aesthetic.
- * All Firebase auth logic preserved from original.
+ * Supports Supabase Auth with Firebase Auth fallback.
  */
 export default function AuthScreen({ initialMode = "signin" }) {
   const { navigate } = useNav();
@@ -21,8 +22,18 @@ export default function AuthScreen({ initialMode = "signin" }) {
     setError("");
     setLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
-      navigate("canvas");
+      if (SUPABASE_CONFIGURED && supabase) {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: window.location.origin,
+          },
+        });
+        if (error) throw error;
+      } else {
+        await signInWithPopup(auth, googleProvider);
+        navigate("canvas");
+      }
     } catch (err) {
       if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
         console.log("[Auth] Popup closed or cancelled by user.");
@@ -40,12 +51,35 @@ export default function AuthScreen({ initialMode = "signin" }) {
     setError("");
     setLoading(true);
     try {
-      if (mode === "signup") {
-        await createUserWithEmailAndPassword(auth, email, password);
+      if (SUPABASE_CONFIGURED && supabase) {
+        if (mode === "signup") {
+          const { error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                full_name: name,
+              },
+            },
+          });
+          if (error) throw error;
+          navigate("canvas");
+        } else {
+          const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (error) throw error;
+          navigate("canvas");
+        }
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        if (mode === "signup") {
+          await createUserWithEmailAndPassword(auth, email, password);
+        } else {
+          await signInWithEmailAndPassword(auth, email, password);
+        }
+        navigate("canvas");
       }
-      navigate("canvas");
     } catch (err) {
       setError(err.message || "Authentication failed.");
     } finally {

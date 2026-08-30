@@ -1,9 +1,10 @@
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth, FIREBASE_CONFIGURED } from "./lib/firebase";
+import { useAuth } from "./hooks/useAuth";
+import { FIREBASE_CONFIGURED } from "./lib/firebase";
+import { SUPABASE_CONFIGURED } from "./lib/supabase";
 import ResponsiveShell from "./components/layout/ResponsiveShell";
 import { useOffline } from "./hooks/useOffline";
 
-// ── Demo Mode (no Firebase keys) ─────────────────────────────────────────────
+// ── Demo Mode (no Firebase/Supabase keys) ─────────────────────────────────────
 // Renders without auth — the NavContext inside ResponsiveShell handles routing,
 // starting from the Landing Page.
 function DemoApp() {
@@ -21,9 +22,9 @@ function DemoApp() {
   );
 }
 
-// ── Authenticated App (Firebase configured) ─────────────────────────────────
+// ── Authenticated App (Firebase or Supabase configured) ───────────────────────
 function AuthenticatedApp() {
-  const [user, loading] = useAuthState(auth);
+  const [user, loading] = useAuth();
   const isOffline = useOffline();
 
   if (loading) {
@@ -53,7 +54,8 @@ function AuthenticatedApp() {
   );
 }
 
-// ── Root — picks the right app based on Firebase config ─────────────────────
+// ── Root — picks the right app based on configurations ───────────────────────
 export default function App() {
-  return FIREBASE_CONFIGURED ? <AuthenticatedApp /> : <DemoApp />;
+  const isConfigured = FIREBASE_CONFIGURED || SUPABASE_CONFIGURED;
+  return isConfigured ? <AuthenticatedApp /> : <DemoApp />;
 }

@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from "react";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { signOut } from "firebase/auth";
 import { auth } from "../../lib/firebase";
+import { useAuth } from "../../hooks/useAuth";
+import { supabase, SUPABASE_CONFIGURED } from "../../lib/supabase";
 import { useNav } from "../../context/NavContext";
 
 export default function Header({ showSearch = true }) {
   const { navigate } = useNav();
-  const [user] = auth ? useAuthState(auth) : [null];
+  const [user] = useAuth();
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchVal, setSearchVal] = useState("");
   const [notifOpen, setNotifOpen] = useState(false);
@@ -25,7 +26,11 @@ export default function Header({ showSearch = true }) {
 
   const handleSignOut = async () => {
     try {
-      if (auth) await signOut(auth);
+      if (SUPABASE_CONFIGURED && supabase) {
+        await supabase.auth.signOut();
+      } else if (auth) {
+        await signOut(auth);
+      }
       setProfileOpen(false);
       navigate("landing");
     } catch (err) {
@@ -33,8 +38,8 @@ export default function Header({ showSearch = true }) {
     }
   };
 
-  const userInitial = user?.displayName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || (user ? "U" : "G");
-  const userDisplayName = user?.displayName || (user?.email ? user.email.split("@")[0] : "Guest Student");
+  const userDisplayName = user?.user_metadata?.full_name || user?.displayName || (user?.email ? user.email.split("@")[0] : "Guest Student");
+  const userInitial = userDisplayName?.[0]?.toUpperCase() || "U";
   const userEmail = user?.email || "Using Demo Mode";
 
   return (

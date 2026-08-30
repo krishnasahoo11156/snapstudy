@@ -1,3 +1,5 @@
+import { supabase, SUPABASE_CONFIGURED } from "./supabase";
+
 /**
  * Image Storage Service — 100% Free & No-Payment-Required
  *
@@ -5,9 +7,10 @@
  * lightweight, free architecture that works directly from browser and Vercel.
  *
  * Supported Storage Strategies:
- * 1. Cloudinary Unsigned Upload: Free tier (25GB/month, no credit card required)
+ * 1. Supabase Storage Bucket: Free direct cloud storage (if VITE_SUPABASE_* are set).
+ * 2. Cloudinary Unsigned Upload: Free tier (25GB/month, no credit card required)
  *    Activated automatically if VITE_CLOUDINARY_CLOUD_NAME & VITE_CLOUDINARY_UPLOAD_PRESET are set.
- * 2. Optimized DataURL & IndexedDB Storage: Free, zero-setup default.
+ * 3. Optimized DataURL & IndexedDB Storage: Free, zero-setup default.
  *    Stores compressed, high-density WebP/JPEG data directly in Firestore documents (<200KB)
  *    and caches in IndexedDB for instant offline access.
  */
@@ -75,7 +78,36 @@ export async function compressImage(file, maxWidth = 1280, maxHeight = 1280, qua
  */
 export async function uploadPhotoToStorage(blob, uid = "demo_user", onProgress = null, dataUrl = null) {
   const timestamp = Date.now();
-  const storagePath = `photos/${uid}/${timestamp}.jpg`;
+  const storagePath = `${uid}/${timestamp}.jpg`;
+
+  // Strategy 1: Supabase Cloud Storage
+  if (SUPABASE_CONFIGURED && supabase) {
+    try {
+      onProgress?.(25);
+      const { data, error } = await supabase.storage
+        .from("photos")
+        .upload(storagePath, blob, {
+          contentType: "image/jpeg",
+          cacheControl: "3600",
+          upsert: true,
+        });
+
+      if (error) throw error;
+
+      onProgress?.(75);
+      const { data: { publicUrl } } = supabase.storage
+        .from("photos")
+        .getPublicUrl(storagePath);
+
+      onProgress?.(100);
+      return {
+        downloadUrl: publicUrl,
+        storagePath: storagePath,
+      };
+    } catch (err) {
+      console.warn("[Supabase Storage] Upload failed, falling back:", err);
+    }
+  }
 
   const cloudinaryCloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
   const cloudinaryPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;

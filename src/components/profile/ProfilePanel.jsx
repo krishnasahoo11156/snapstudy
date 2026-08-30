@@ -1,17 +1,27 @@
 import { auth } from "../../lib/firebase";
 import { signOut } from "firebase/auth";
 import { useAuth } from "../../hooks/useAuth";
+import { supabase, SUPABASE_CONFIGURED } from "../../lib/supabase";
 
 export default function ProfilePanel() {
   const [user] = useAuth();
 
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
+      if (SUPABASE_CONFIGURED && supabase) {
+        await supabase.auth.signOut();
+      } else {
+        await signOut(auth);
+      }
     } catch (err) {
       console.error("Sign out error:", err);
     }
   };
+
+  const displayName = user?.user_metadata?.full_name || user?.displayName || "SnapStudy User";
+  const userInitial = displayName[0]?.toUpperCase() || "U";
+  const userEmail = user?.email || "N/A";
+  const userUid = user?.id || user?.uid || "N/A";
 
   return (
     <div className="flex min-h-full flex-col items-center justify-center p-6 animate-fade-in bg-paper-warm">
@@ -21,17 +31,17 @@ export default function ProfilePanel() {
         {/* Avatar */}
         <div className="bg-white border border-paper-border shadow-card mb-6 flex items-center gap-4 rounded-3xl p-6">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-xl font-bold text-white shadow-sm">
-            {user?.displayName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U"}
+            {userInitial}
           </div>
           <div className="overflow-hidden">
-            <p className="font-semibold text-ink truncate">{user?.displayName || "SnapStudy User"}</p>
-            <p className="text-xs text-ink-secondary truncate">{user?.email}</p>
+            <p className="font-semibold text-ink truncate">{displayName}</p>
+            <p className="text-xs text-ink-secondary truncate">{userEmail}</p>
           </div>
         </div>
 
         {/* UID for debugging */}
         <div className="bg-white border border-paper-border shadow-card mb-6 rounded-2xl p-4">
-          <p className="text-xs text-ink-tertiary font-mono break-all">uid: {user?.uid}</p>
+          <p className="text-xs text-ink-tertiary font-mono break-all">uid: {userUid}</p>
         </div>
 
         {/* Sign Out */}
