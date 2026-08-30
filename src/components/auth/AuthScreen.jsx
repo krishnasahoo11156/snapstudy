@@ -183,7 +183,14 @@ export default function AuthScreen({ initialMode = "signin" }) {
             <button
               id="auth-mode-toggle"
               type="button"
-              onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(""); }}
+              onClick={() => {
+                const nextMode = mode === "signin" ? "signup" : "signin";
+                setMode(nextMode);
+                setError("");
+                if (typeof window !== "undefined") {
+                  window.history.pushState({ page: nextMode === "signup" ? "signup" : "login" }, "", nextMode === "signup" ? "/signup" : "/login");
+                }
+              }}
               className="text-accent font-medium hover:underline"
             >
               {mode === "signin" ? "Sign up" : "Sign in"}

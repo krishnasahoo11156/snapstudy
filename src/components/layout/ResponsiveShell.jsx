@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { NavProvider } from "../../context/NavContext";
 import MobileLayout from "./MobileLayout";
 import DesktopLayout from "./DesktopLayout";
 
@@ -18,5 +19,9 @@ export default function ResponsiveShell() {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  return isMobile ? <MobileLayout /> : <DesktopLayout />;
+  return (
+    <NavProvider>
+      {isMobile ? <MobileLayout /> : <DesktopLayout />}
+    </NavProvider>
+  );
 }

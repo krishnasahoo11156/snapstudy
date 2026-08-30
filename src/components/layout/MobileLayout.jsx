@@ -1,29 +1,29 @@
-import { NavProvider, useNav } from "../../context/NavContext";
+import { useNav } from "../../context/NavContext";
 import LandingPage from "../../pages/LandingPage";
 import AuthScreen from "../auth/AuthScreen";
 import StudyCanvas from "../canvas/StudyCanvas";
 import FolderCanvas from "../canvas/FolderCanvas";
 import NotesWorkspace from "../notes/NotesWorkspace";
+import CaptureScreen from "../capture/CaptureScreen";
 
-function MobileRouter() {
+export default function MobileLayout() {
   const { page } = useNav();
 
   switch (page) {
-    case "landing":  return <LandingPage />;
-    case "login":    return <AuthScreen initialMode="signin" />;
-    case "signup":   return <AuthScreen initialMode="signup" />;
-    case "canvas":   return <StudyCanvas />;
-    case "folder":   return <FolderCanvas />;
-    case "chapter":  return <FolderCanvas />;
-    case "notes":    return <NotesWorkspace />;
-    default:         return <LandingPage />;
+    case "landing":       return <LandingPage />;
+    case "login":         return <AuthScreen initialMode="signin" />;
+    case "signup":        return <AuthScreen initialMode="signup" />;
+    case "canvas":        return <StudyCanvas />;
+    case "folder":        return <FolderCanvas />;
+    case "chapter":       return <FolderCanvas />;
+    case "notes":         return <NotesWorkspace />;
+    case "capture-image":
+    case "capture-file":
+      return (
+        <div className="flex flex-col min-h-screen bg-paper">
+          <CaptureScreen />
+        </div>
+      );
+    default:              return <LandingPage />;
   }
-}
-
-export default function MobileLayout() {
-  return (
-    <NavProvider>
-      <MobileRouter />
-    </NavProvider>
-  );
 }

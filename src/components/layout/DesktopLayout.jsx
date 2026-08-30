@@ -1,4 +1,4 @@
-import { NavProvider, useNav } from "../../context/NavContext";
+import { useNav } from "../../context/NavContext";
 import LandingPage from "../../pages/LandingPage";
 import AuthScreen from "../auth/AuthScreen";
 import StudyCanvas from "../canvas/StudyCanvas";
@@ -6,10 +6,7 @@ import FolderCanvas from "../canvas/FolderCanvas";
 import NotesWorkspace from "../notes/NotesWorkspace";
 import CaptureScreen from "../capture/CaptureScreen";
 
-/**
- * Inner router — reads NavContext and renders the correct page.
- */
-function AppRouter() {
+export default function DesktopLayout() {
   const { page } = useNav();
 
   switch (page) {
@@ -29,16 +26,4 @@ function AppRouter() {
       );
     default:          return <LandingPage />;
   }
-}
-
-/**
- * DesktopLayout — wraps the app with NavProvider and renders the router.
- * No sidebar. Navigation is handled by NavContext.
- */
-export default function DesktopLayout() {
-  return (
-    <NavProvider>
-      <AppRouter />
-    </NavProvider>
-  );
 }
