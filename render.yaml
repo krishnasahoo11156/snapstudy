@@ -23,12 +23,18 @@ services:
       # ── Gemini ───────────────────────────────────────────────────────────
       - key: GEMINI_API_KEY
         sync: false              # Set manually in Render dashboard
+      - key: GEMINI_API_KEY_DETECT
+        sync: false              # Set manually in Render dashboard
+      - key: GEMINI_API_KEY_GENERATE
+        sync: false              # Set manually in Render dashboard
+      - key: GEMINI_API_KEY_REMEDIATE
+        sync: false              # Set manually in Render dashboard
 
       - key: MODEL_BATCH
-        value: gemini-2.5-flash
+        value: gemini-3.5-flash
 
       - key: MODEL_LIVE
-        value: gemini-2.5-flash
+        value: gemini-3.5-flash-lite
 
       # ── CORS ─────────────────────────────────────────────────────────────
       # Set CLIENT_ORIGIN to your Vercel URL after first deploy
