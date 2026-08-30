@@ -22,14 +22,29 @@ export async function savePhotoRecord(record) {
     console.warn("Failed to cache photo record locally:", e);
   }
 
+  // Resolve user UID if missing or guest
+  let resolvedUid = record.uid;
+  if (!resolvedUid || resolvedUid === "guest_user") {
+    try {
+      if (SUPABASE_CONFIGURED && supabase) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) resolvedUid = user.id;
+      } else if (firebaseAuth?.currentUser?.uid) {
+        resolvedUid = firebaseAuth.currentUser.uid;
+      }
+    } catch (e) {
+      console.warn("Could not retrieve current user for savePhotoRecord:", e);
+    }
+  }
+
   // 2. Cloud Supabase Sync
-  if (SUPABASE_CONFIGURED && supabase && record.uid && record.uid !== "guest_user") {
+  if (SUPABASE_CONFIGURED && supabase && resolvedUid && resolvedUid !== "guest_user") {
     try {
       const { error } = await supabase
         .from("photos")
         .upsert({
           id: record.id,
-          uid: record.uid,
+          uid: resolvedUid,
           original_photo_url: record.originalPhotoUrl,
           original_photo_path: record.originalPhotoPath,
           regions: record.regions || [],
@@ -44,15 +59,16 @@ export async function savePhotoRecord(record) {
   }
 
   // 3. Cloud Firestore sync
-  if (FIREBASE_CONFIGURED && db && record.uid && record.uid !== "guest_user") {
+  if (FIREBASE_CONFIGURED && db && resolvedUid && resolvedUid !== "guest_user" && !SUPABASE_CONFIGURED) {
     try {
       const docRef = doc(db, "photos", record.id);
       const writePromise = setDoc(docRef, {
         ...record,
+        uid: resolvedUid,
         createdAt: record.createdAt instanceof Date ? record.createdAt.toISOString() : record.createdAt,
       });
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Firestore sync timeout")), 2500)
+        setTimeout(() => reject(new Error("Firestore sync timeout")), 1500)
       );
       await Promise.race([writePromise, timeoutPromise]);
     } catch (err) {
@@ -63,21 +79,39 @@ export async function savePhotoRecord(record) {
 
 /**
  * Get all photo records for a user.
+ * Returns local cache immediately or merged with cloud records without hanging.
  * @param {string} uid
  * @returns {Promise<import("../types").PhotoRecord[]>}
  */
 export async function getPhotoRecords(uid) {
-  // 1. Fetch from Supabase
-  if (SUPABASE_CONFIGURED && supabase && uid) {
+  // Read local cache first for instant fallback & merge
+  let localRecords = [];
+  try {
+    const cached = JSON.parse(localStorage.getItem(LOCAL_STORAGE_PHOTOS_KEY) || "[]");
+    localRecords = uid && uid !== "guest_user"
+      ? cached.filter((r) => r.uid === uid || !r.uid)
+      : cached;
+  } catch {
+    localRecords = [];
+  }
+
+  // 1. Fetch from Supabase (fast query with short timeout)
+  if (SUPABASE_CONFIGURED && supabase && uid && uid !== "guest_user") {
     try {
-      const { data, error } = await supabase
+      const fetchPromise = supabase
         .from("photos")
         .select("*")
         .eq("uid", uid);
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Supabase fetch timeout")), 2500)
+      );
+
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
       if (error) throw error;
 
-      if (data && data.length > 0) {
-        return data.map(d => ({
+      if (data) {
+        const cloudRecords = data.map((d) => ({
           id: d.id,
           uid: d.uid,
           originalPhotoUrl: d.original_photo_url,
@@ -86,34 +120,43 @@ export async function getPhotoRecords(uid) {
           cards: d.cards,
           createdAt: d.created_at,
         }));
+
+        // Merge cloud with any local records not yet synced
+        const cloudIds = new Set(cloudRecords.map((r) => r.id));
+        const unSyncedLocal = localRecords.filter((r) => !cloudIds.has(r.id));
+        return [...cloudRecords, ...unSyncedLocal];
       }
     } catch (err) {
-      console.warn("[Supabase] Failed to fetch photo records, reading local cache:", err);
+      console.warn("[Supabase] Failed to fetch photo records, reading local cache:", err?.message || err);
+      return localRecords;
     }
   }
 
-  // 2. Fetch from Cloud Firestore
-  if (FIREBASE_CONFIGURED && db && uid) {
+  // 2. Fetch from Cloud Firestore (only if Supabase not used, with strict 1500ms timeout)
+  if (FIREBASE_CONFIGURED && db && uid && uid !== "guest_user" && !SUPABASE_CONFIGURED) {
     try {
       const q = query(collection(db, "photos"), where("uid", "==", uid));
-      const querySnapshot = await getDocs(q);
+      const getPromise = getDocs(q);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Firestore fetch timeout")), 1500)
+      );
+      const querySnapshot = await Promise.race([getPromise, timeoutPromise]);
       const records = [];
       querySnapshot.forEach((d) => {
         records.push({ id: d.id, ...d.data() });
       });
-      if (records.length > 0) return records;
+      if (records.length > 0) {
+        const cloudIds = new Set(records.map((r) => r.id));
+        const unSyncedLocal = localRecords.filter((r) => !cloudIds.has(r.id));
+        return [...records, ...unSyncedLocal];
+      }
     } catch (err) {
-      console.warn("[Firestore] Failed to fetch photo records, reading local cache:", err);
+      console.warn("[Firestore] Failed to fetch photo records, reading local cache:", err?.message || err);
     }
   }
 
   // Local fallback
-  try {
-    const cached = JSON.parse(localStorage.getItem(LOCAL_STORAGE_PHOTOS_KEY) || "[]");
-    return uid ? cached.filter((r) => r.uid === uid || !r.uid) : cached;
-  } catch {
-    return [];
-  }
+  return localRecords;
 }
 
 /**
@@ -122,6 +165,15 @@ export async function getPhotoRecords(uid) {
  * @returns {Promise<import("../types").PhotoRecord | null>}
  */
 export async function getPhotoRecord(id) {
+  // Check local cache first
+  try {
+    const cached = JSON.parse(localStorage.getItem(LOCAL_STORAGE_PHOTOS_KEY) || "[]");
+    const local = cached.find((r) => r.id === id);
+    if (local) return local;
+  } catch {
+    // continue to cloud
+  }
+
   // 1. Fetch from Supabase
   if (SUPABASE_CONFIGURED && supabase && id) {
     try {
@@ -144,28 +196,27 @@ export async function getPhotoRecord(id) {
         };
       }
     } catch (err) {
-      console.warn("[Supabase] Failed to fetch photo record:", err);
+      console.warn("[Supabase] Failed to fetch photo record:", err?.message || err);
     }
   }
 
   // 2. Fetch from Cloud Firestore
-  if (FIREBASE_CONFIGURED && db && id) {
+  if (FIREBASE_CONFIGURED && db && id && !SUPABASE_CONFIGURED) {
     try {
-      const docSnap = await getDoc(doc(db, "photos", id));
+      const docSnapPromise = getDoc(doc(db, "photos", id));
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Firestore getDoc timeout")), 1500)
+      );
+      const docSnap = await Promise.race([docSnapPromise, timeoutPromise]);
       if (docSnap.exists()) {
         return { id: docSnap.id, ...docSnap.data() };
       }
     } catch (err) {
-      console.warn("[Firestore] Failed to fetch photo record:", err);
+      console.warn("[Firestore] Failed to fetch photo record:", err?.message || err);
     }
   }
 
-  try {
-    const cached = JSON.parse(localStorage.getItem(LOCAL_STORAGE_PHOTOS_KEY) || "[]");
-    return cached.find((r) => r.id === id) || null;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 /**
@@ -177,7 +228,7 @@ export async function getPhotoRecord(id) {
  * @returns {Promise<void>}
  */
 export async function deletePhotoRecord(id, uid) {
-  // 1. Remove from local storage cache
+  // 1. Remove from local storage cache immediately
   try {
     const existing = JSON.parse(localStorage.getItem(LOCAL_STORAGE_PHOTOS_KEY) || "[]");
     const updated = existing.filter((p) => p.id !== id);
@@ -202,17 +253,21 @@ export async function deletePhotoRecord(id, uid) {
         .eq("id", id);
       if (error) throw error;
     } catch (err) {
-      console.warn("[Supabase] Failed to delete photo record:", err);
+      console.warn("[Supabase] Failed to delete photo record:", err?.message || err);
     }
   }
 
   // 3. Remove from Cloud Firestore
-  if (FIREBASE_CONFIGURED && db && id) {
+  if (FIREBASE_CONFIGURED && db && id && !SUPABASE_CONFIGURED) {
     try {
       const docRef = doc(db, "photos", id);
-      await deleteDoc(docRef);
+      const delPromise = deleteDoc(docRef);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Firestore delete timeout")), 1500)
+      );
+      await Promise.race([delPromise, timeoutPromise]);
     } catch (err) {
-      console.warn("[Firestore] Failed to delete photo record:", err);
+      console.warn("[Firestore] Failed to delete photo record:", err?.message || err);
     }
   }
 }

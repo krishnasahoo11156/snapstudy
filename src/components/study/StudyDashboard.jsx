@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "../../lib/firebase";
+import { useAuth } from "../../hooks/useAuth";
 import { getPhotoRecords, deletePhotoRecord } from "../../lib/firestore";
 import { generateMockCards, generateMockRegions } from "../../data/mock-data";
 import QuizScreen from "../quiz/QuizScreen";
@@ -41,7 +40,8 @@ const DEFAULT_DECKS = [
 ];
 
 export default function StudyDashboard() {
-  const [user] = auth ? useAuthState(auth) : [null];
+  const [user] = useAuth();
+  const uid = user?.id || user?.uid || "guest_user";
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [decks, setDecks] = useState([]);
   const [deckToDelete, setDeckToDelete] = useState(null);
@@ -52,7 +52,7 @@ export default function StudyDashboard() {
       const deletedDefaults = JSON.parse(localStorage.getItem(LOCAL_STORAGE_DELETED_DEFAULTS) || "[]");
       const activeDefaults = DEFAULT_DECKS.filter((d) => !deletedDefaults.includes(d.id));
 
-      const records = await getPhotoRecords(user?.uid || "guest_user");
+      const records = await getPhotoRecords(uid);
       if (records && records.length > 0) {
         const userDecks = records.map((rec, idx) => ({
           id: rec.id,
