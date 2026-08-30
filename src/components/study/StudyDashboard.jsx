@@ -1,5 +1,8 @@
-import { useState } from "react";
-import { generateMockCards } from "../../data/mock-data";
+import { useState, useEffect } from "react";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "../../lib/firebase";
+import { getPhotoRecords } from "../../lib/firestore";
+import { generateMockCards, generateMockRegions } from "../../data/mock-data";
 import QuizScreen from "../quiz/QuizScreen";
 
 /** Progress ring SVG component */
@@ -11,7 +14,9 @@ function ProgressRing({ percent, size = 48, stroke = 4 }) {
     <svg width={size} height={size}>
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(51 65 85)" strokeWidth={stroke} />
       <circle
-        cx={size / 2} cy={size / 2} r={r}
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
         fill="none"
         stroke="#60a5fa"
         strokeWidth={stroke}
@@ -27,26 +32,61 @@ function ProgressRing({ percent, size = 48, stroke = 4 }) {
   );
 }
 
-const MOCK_DECKS = [
-  { id: "deck_0", title: "Mathematics — Quadratic Equations", subject: "Math", emoji: "📐", cardCount: 4, masteredCount: 1, lastStudied: "Today", color: "from-blue-600 to-violet-600" },
-  { id: "deck_1", title: "Physics — Newton's Laws", subject: "Physics", emoji: "⚛️", cardCount: 8, masteredCount: 5, lastStudied: "Yesterday", color: "from-emerald-600 to-teal-600" },
-  { id: "deck_2", title: "Chemistry — Periodic Table", subject: "Chem", emoji: "🧪", cardCount: 12, masteredCount: 3, lastStudied: "2 days ago", color: "from-orange-600 to-rose-600" },
+const DEFAULT_DECKS = [
+  { id: "deck_0", title: "Mathematics — Quadratic Equations", subject: "Math", emoji: "📐", cardCount: 4, masteredCount: 1, lastStudied: "Today", color: "from-blue-600 to-violet-600", cards: generateMockCards().cards, regions: generateMockRegions().regions },
+  { id: "deck_1", title: "Physics — Newton's Laws", subject: "Physics", emoji: "⚛️", cardCount: 8, masteredCount: 5, lastStudied: "Yesterday", color: "from-emerald-600 to-teal-600", cards: generateMockCards().cards, regions: generateMockRegions().regions },
+  { id: "deck_2", title: "Chemistry — Periodic Table", subject: "Chem", emoji: "🧪", cardCount: 12, masteredCount: 3, lastStudied: "2 days ago", color: "from-orange-600 to-rose-600", cards: generateMockCards().cards, regions: generateMockRegions().regions },
 ];
 
 export default function StudyDashboard() {
+  const [user] = auth ? useAuthState(auth) : [null];
   const [activeQuiz, setActiveQuiz] = useState(null);
+  const [decks, setDecks] = useState(DEFAULT_DECKS);
+
+  useEffect(() => {
+    async function loadDecks() {
+      try {
+        const records = await getPhotoRecords(user?.uid || "guest_user");
+        if (records && records.length > 0) {
+          const userDecks = records.map((rec, idx) => ({
+            id: rec.id,
+            title: rec.regions?.[0]?.label ? `Notes: ${rec.regions[0].label}` : `Scanned Note Deck #${records.length - idx}`,
+            subject: rec.regions?.[0]?.region_type?.toUpperCase() || "NOTES",
+            emoji: "📝",
+            cardCount: rec.cards?.length || 0,
+            masteredCount: 0,
+            lastStudied: "Just now",
+            color: "from-indigo-600 to-cyan-600",
+            cards: rec.cards || [],
+            regions: rec.regions || [],
+            photoUrl: rec.originalPhotoUrl || null,
+          }));
+
+          // Merge user decks on top of default decks
+          setDecks([...userDecks, ...DEFAULT_DECKS]);
+        }
+      } catch (err) {
+        console.warn("Failed to load user decks:", err);
+      }
+    }
+    loadDecks();
+  }, [user]);
 
   if (activeQuiz) {
     return (
-      <QuizScreen
-        deck={activeQuiz}
-        cards={generateMockCards().cards}
-        onExit={() => setActiveQuiz(null)}
-      />
+      <div className="p-4 md:p-8 max-w-4xl mx-auto">
+        <QuizScreen
+          deck={activeQuiz}
+          cards={activeQuiz.cards || generateMockCards().cards}
+          regions={activeQuiz.regions || []}
+          photoUrl={activeQuiz.photoUrl || null}
+          onExit={() => setActiveQuiz(null)}
+        />
+      </div>
     );
   }
 
-  const recentDeck = MOCK_DECKS[0];
+  const recentDeck = decks[0];
 
   return (
     <div className="min-h-full p-6 animate-fade-in">
@@ -54,7 +94,7 @@ export default function StudyDashboard() {
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-slate-100">Study Dashboard</h2>
         <p className="mt-1 text-sm text-slate-400">
-          {MOCK_DECKS.reduce((acc, d) => acc + d.cardCount, 0)} cards across {MOCK_DECKS.length} decks
+          {decks.reduce((acc, d) => acc + d.cardCount, 0)} cards across {decks.length} decks
         </p>
       </div>
 
@@ -85,8 +125,8 @@ export default function StudyDashboard() {
       <div>
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">Your Decks</h3>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {MOCK_DECKS.map((deck) => {
-            const mastery = Math.round((deck.masteredCount / deck.cardCount) * 100);
+          {decks.map((deck) => {
+            const mastery = deck.cardCount > 0 ? Math.round((deck.masteredCount / deck.cardCount) * 100) : 0;
             return (
               <div
                 key={deck.id}
@@ -95,15 +135,24 @@ export default function StudyDashboard() {
                 id={`deck-card-${deck.id}`}
               >
                 {/* Thumbnail */}
-                <div className={`relative mb-4 h-32 w-full overflow-hidden rounded-xl bg-gradient-to-br ${deck.color} opacity-85 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center border border-slate-700/30`}>
-                  {/* Notebook ruled grid pattern */}
-                  <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:12px_12px]" />
-                  {/* Floating abstract mathematical/diagram look using shapes */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-4xl select-none filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)] transform group-hover:scale-110 transition-transform duration-200">
-                      {deck.emoji}
-                    </span>
-                  </div>
+                <div className={`relative mb-4 h-32 w-full overflow-hidden rounded-xl bg-gradient-to-br ${deck.color} opacity-90 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center border border-slate-700/30`}>
+                  {deck.photoUrl ? (
+                    <img
+                      src={deck.photoUrl}
+                      alt={deck.title}
+                      className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <>
+                      {/* Notebook ruled grid pattern */}
+                      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:12px_12px]" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-4xl select-none filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)] transform group-hover:scale-110 transition-transform duration-200">
+                          {deck.emoji}
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Subject badge & Progress */}

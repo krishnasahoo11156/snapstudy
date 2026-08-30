@@ -1,3 +1,5 @@
+import RegionOverlay from "../region-overlay/RegionOverlay";
+
 /**
  * RemediationScreen — the centerpiece of SnapStudy.
  * Shows exactly WHERE in the student's notes the answer was, and WHY they were wrong.
@@ -7,44 +9,71 @@
  *   region: import("../../types").Region,
  *   wrongAnswer: string,
  *   remediation: import("../../types").RemediationResult,
+ *   photoUrl?: string,
  *   onContinue: () => void
  * }} props
  */
-export default function RemediationScreen({ card, region, wrongAnswer, remediation, onContinue }) {
+export default function RemediationScreen({
+  card,
+  region,
+  wrongAnswer,
+  remediation,
+  photoUrl,
+  onContinue,
+}) {
   return (
     <div className="min-h-full animate-fade-in">
+      {/* Header banner */}
+      <div className="flex items-center justify-between border-b border-slate-800 bg-amber-500/10 px-6 py-3 text-amber-300 text-xs font-semibold">
+        <span className="flex items-center gap-2">
+          <span>🔍</span>
+          <span>Grounded AI Note Remediation — Reviewing your source notes</span>
+        </span>
+        <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[11px] text-amber-200 border border-amber-500/30">
+          {region?.label || "Source Region"}
+        </span>
+      </div>
+
       {/* Mobile: stacked / Desktop: side-by-side */}
       <div className="flex min-h-full flex-col lg:flex-row">
-
-        {/* ── Left Panel: Source Region ───────────────────────────────── */}
-        <div className="flex flex-col bg-slate-800/50 p-6 lg:w-1/2 lg:border-r lg:border-slate-700/60">
-          {/* Label */}
-          <div className="mb-3 flex items-center gap-2">
-            <span className="text-base">📍</span>
-            <span className="text-sm font-semibold text-slate-300">From your notes:</span>
-            <span className="ml-auto rounded-md bg-slate-700 px-2 py-0.5 text-xs text-slate-400">
-              {region.region_type}
+        {/* ── Left Panel: Source Region on Real Note Photo ─────────────── */}
+        <div className="flex flex-col bg-slate-900/60 p-6 lg:w-1/2 lg:border-r lg:border-slate-800 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300">
+              <span>📍</span>
+              <span>Exact Location in Your Notes</span>
+            </span>
+            <span className="rounded-lg bg-blue-500/20 border border-blue-500/40 px-2 py-0.5 text-[10px] font-semibold text-blue-300">
+              {region?.region_type || "Note Region"}
             </span>
           </div>
 
-          {/* Source crop placeholder — Branch A provides real crop via API */}
-          <div className="flex-1 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 flex flex-col items-center justify-center min-h-40">
-            {/* When real API is wired, replace this with: <img src={`data:image/jpeg;base64,${cropBase64}`} /> */}
-            <div className="w-full p-5">
-              <div className="rounded-lg border border-dashed border-slate-600 bg-slate-800/60 p-6 text-center">
-                <p className="text-xs font-mono text-slate-400 leading-relaxed italic">
-                  "{region.raw_text}"
-                </p>
-                <p className="mt-3 text-xs text-slate-600">
-                  Branch A: replace with real cropped image
-                </p>
-              </div>
+          {/* Real Photo with interactive/highlighted bounding box overlay */}
+          {photoUrl ? (
+            <div className="overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950 shadow-2xl">
+              <RegionOverlay
+                src={photoUrl}
+                regions={region ? [region] : []}
+                selectedRegionId={region?.id}
+                interactive={false}
+              />
             </div>
-          </div>
+          ) : (
+            <div className="flex-1 overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 p-6 text-center flex flex-col items-center justify-center min-h-48">
+              <p className="text-xs font-mono text-slate-300 leading-relaxed italic">
+                "{region?.raw_text || "Notebook note region"}"
+              </p>
+            </div>
+          )}
 
-          {/* Region label */}
-          <div className="mt-3">
-            <p className="text-sm font-semibold text-slate-200">{region.label}</p>
+          {/* Region caption */}
+          <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3 text-xs">
+            <p className="font-semibold text-slate-200">{region?.label}</p>
+            {region?.raw_text && (
+              <p className="text-[11px] text-slate-400 mt-1 italic line-clamp-2">
+                "{region.raw_text}"
+              </p>
+            )}
           </div>
         </div>
 

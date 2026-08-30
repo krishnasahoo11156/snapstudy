@@ -4,8 +4,9 @@ import FlashcardDerivation from "../study/FlashcardDerivation";
 import FlashcardDiagram from "../study/FlashcardDiagram";
 import FlashcardTimeline from "../study/FlashcardTimeline";
 import RemediationScreen from "../remediation/RemediationScreen";
-import { generateMockRemediation } from "../../data/mock-data";
-import { generateMockRegions } from "../../data/mock-data";
+import { generateMockRemediation, generateMockRegions } from "../../data/mock-data";
+import { api } from "../../lib/api-client";
+import { saveQuizSession } from "../../lib/firestore";
 
 /** Route to correct flashcard component by card_type */
 function CardRenderer({ card, onFlipped }) {
@@ -21,27 +22,75 @@ function CardRenderer({ card, onFlipped }) {
 /**
  * QuizScreen — one-card-at-a-time quiz flow.
  *
- * @param {{ deck: object, cards: import("../../types").Flashcard[], onExit: () => void }} props
+ * @param {{
+ *   deck: object,
+ *   cards: import("../../types").Flashcard[],
+ *   regions?: import("../../types").Region[],
+ *   photoUrl?: string,
+ *   onExit: () => void
+ * }} props
  */
-export default function QuizScreen({ deck, cards, onExit }) {
+export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit }) {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [responses, setResponses] = useState([]);
   const [showRemediation, setShowRemediation] = useState(null);
+  const [loadingRemediation, setLoadingRemediation] = useState(false);
   const [finished, setFinished] = useState(false);
 
   const card = cards[index];
   const progress = ((index) / cards.length) * 100;
-  const regions = generateMockRegions().regions;
+  const effectiveRegions = regions && regions.length > 0 ? regions : generateMockRegions().regions;
 
-  const recordResponse = (correct) => {
-    const newResponses = [...responses, { cardId: card.id, correct, timeSpentMs: 0, userAnswer: correct ? card.back : "Incorrect" }];
+  const recordResponse = async (correct) => {
+    const newResponses = [
+      ...responses,
+      {
+        cardId: card.id,
+        correct,
+        timeSpentMs: 0,
+        userAnswer: correct ? card.back : "Need assistance / incorrect answer",
+      },
+    ];
     setResponses(newResponses);
 
     if (!correct) {
-      // Trigger remediation
-      const region = regions.find((r) => r.id === card.source_region_id) || regions[0];
-      setShowRemediation({ card, region, wrongAnswer: "My incorrect answer" });
+      // Find linked region from user notes
+      const matchedRegion =
+        effectiveRegions.find((r) => r.id === card.source_region_id) || effectiveRegions[0];
+
+      setLoadingRemediation(true);
+      try {
+        const cleanBase64 = photoUrl?.replace(/^data:image\/\w+;base64,/, "") || "";
+        const remRes = await api.remediate({
+          wrongAnswer: "Need help reviewing this concept",
+          correctAnswer: card.back,
+          regionContext: matchedRegion,
+          cardType: card.card_type,
+          originalImageBase64: cleanBase64,
+          box_2d: matchedRegion?.box_2d,
+        });
+
+        const remediationData =
+          remRes.success && remRes.data ? remRes.data : generateMockRemediation();
+
+        setShowRemediation({
+          card,
+          region: matchedRegion,
+          wrongAnswer: "Need help reviewing this concept",
+          remediation: remediationData,
+        });
+      } catch (err) {
+        console.warn("[remediation error, using fallback]", err);
+        setShowRemediation({
+          card,
+          region: matchedRegion,
+          wrongAnswer: "Need help reviewing this concept",
+          remediation: generateMockRemediation(),
+        });
+      } finally {
+        setLoadingRemediation(false);
+      }
       return;
     }
 
@@ -51,6 +100,17 @@ export default function QuizScreen({ deck, cards, onExit }) {
   const advance = (resp) => {
     if (index + 1 >= cards.length) {
       setFinished(true);
+
+      // Persist completed quiz session to Firestore
+      const correctCount = (resp || responses).filter((r) => r.correct).length;
+      saveQuizSession({
+        id: `quiz_${Date.now()}`,
+        deckId: deck.id || "deck_custom",
+        scorePercent: Math.round((correctCount / cards.length) * 100),
+        startedAt: new Date(),
+        completedAt: new Date(),
+        responses: resp || responses,
+      }).catch((e) => console.warn("Failed to persist quiz session:", e));
     } else {
       setIndex(index + 1);
       setFlipped(false);
@@ -62,13 +122,29 @@ export default function QuizScreen({ deck, cards, onExit }) {
     advance(responses);
   };
 
+  if (loadingRemediation) {
+    return (
+      <div className="flex min-h-full flex-col items-center justify-center p-8 text-center animate-fade-in">
+        <div className="relative mb-6">
+          <div className="h-16 w-16 rounded-full border-4 border-slate-800" />
+          <div className="absolute inset-0 h-16 w-16 rounded-full border-4 border-t-amber-500 border-r-blue-500 animate-spin" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-100">Analyzing Your Notes</h3>
+        <p className="mt-1 text-xs text-amber-300">
+          Gemini AI is finding the exact section in your handwritten notes…
+        </p>
+      </div>
+    );
+  }
+
   if (showRemediation) {
     return (
       <RemediationScreen
         card={showRemediation.card}
         region={showRemediation.region}
         wrongAnswer={showRemediation.wrongAnswer}
-        remediation={generateMockRemediation()}
+        remediation={showRemediation.remediation}
+        photoUrl={photoUrl}
         onContinue={handleRemediationDone}
       />
     );

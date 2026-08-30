@@ -5,6 +5,7 @@ import { compressImage, uploadPhotoToStorage } from "../../lib/storage";
 import { savePhotoRecord } from "../../lib/firestore";
 import { api, isMockMode, setMockMode } from "../../lib/api-client";
 import RegionOverlay, { REGION_COLORS } from "../region-overlay/RegionOverlay";
+import QuizScreen from "../quiz/QuizScreen";
 
 const CARD_TYPE_BADGES = {
   qa: { label: "Q&A", bg: "bg-blue-500/20 text-blue-300 border-blue-500/40" },
@@ -32,11 +33,31 @@ export default function CaptureScreen() {
   const [selectedRegionId, setSelectedRegionId] = useState(null);
   const [useMock, setUseMock] = useState(isMockMode());
 
+  const [quizActive, setQuizActive] = useState(false);
+
   const handleToggleMock = (e) => {
     const checked = e.target.checked;
     setUseMock(checked);
     setMockMode(checked);
   };
+
+  if (quizActive) {
+    return (
+      <div className="p-4 md:p-8 max-w-4xl mx-auto">
+        <QuizScreen
+          deck={{
+            id: `deck_${fileName || Date.now()}`,
+            title: fileName ? `Notes — ${fileName}` : "Note Flashcards",
+            subject: detectedRegions[0]?.region_type || "Study Notes",
+          }}
+          cards={generatedCards}
+          regions={detectedRegions}
+          photoUrl={previewUrl}
+          onExit={() => setQuizActive(false)}
+        />
+      </div>
+    );
+  }
 
   const processImageFile = async (file) => {
     if (!file) return;
@@ -294,6 +315,14 @@ export default function CaptureScreen() {
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setQuizActive(true)}
+                id="start-quiz-btn"
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-blue-500/25 hover:from-blue-500 hover:to-violet-500 transition-all"
+              >
+                <span>🚀</span>
+                <span>Start Quiz ({generatedCards.length} Cards)</span>
+              </button>
               <button
                 onClick={handleReset}
                 className="rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700 transition"

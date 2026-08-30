@@ -1,6 +1,6 @@
 import express from "express";
 import { getModel, parseGeminiJson } from "../services/gemini.js";
-import { cropBase64Image } from "../services/crop.js";
+import { cropBase64Image, normalizeBox } from "../services/crop.js";
 import { remediationPrompt } from "../utils/prompts.js";
 
 const router = express.Router();
