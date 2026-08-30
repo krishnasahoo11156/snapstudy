@@ -12,6 +12,7 @@ const router = express.Router();
  * Single AI pass — 2-3x faster than sequential calls.
  */
 router.post("/", async (req, res) => {
+  const startTime = Date.now();
   try {
     const { image } = req.body;
 
@@ -20,6 +21,7 @@ router.post("/", async (req, res) => {
     }
 
     if (!process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY_DETECT) {
+      console.warn("[/api/ingest] Gemini API key is missing on backend.");
       return res.status(501).json({
         success: false,
         error: "GEMINI_API_KEY is not configured on the server.",
@@ -27,6 +29,7 @@ router.post("/", async (req, res) => {
     }
 
     const cleanBase64 = image.replace(/^data:image\/\w+;base64,/, "").trim();
+    console.log(`[/api/ingest] Processing image payload (${Math.round(cleanBase64.length / 1024)} KB base64)...`);
 
     const text = await generateWithModelFallback([
       unifiedIngestionPrompt,
@@ -60,6 +63,9 @@ router.post("/", async (req, res) => {
       };
     });
 
+    const elapsed = Date.now() - startTime;
+    console.log(`[/api/ingest] Successfully generated ${regions.length} regions and ${cards.length} cards in ${elapsed}ms`);
+
     res.json({
       success: true,
       data: {
@@ -68,7 +74,8 @@ router.post("/", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("[ingest error]", err);
+    const elapsed = Date.now() - startTime;
+    console.error(`[/api/ingest error after ${elapsed}ms]`, err?.message || err);
     res.status(500).json({
       success: false,
       error: err instanceof Error ? err.message : String(err),

@@ -20,6 +20,7 @@ const app = express();
 // ── CORS Configuration ───────────────────────────────────────────────────────
 const ALLOWED_ORIGINS = [
   "https://snapstudy-ten.vercel.app",
+  "https://snapstudy.vercel.app",
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:3000",
@@ -27,25 +28,26 @@ const ALLOWED_ORIGINS = [
   process.env.CLIENT_ORIGIN,
 ].filter(Boolean);
 
+const isOriginAllowed = (origin) => {
+  if (!origin) return true; // Allow non-browser / curl / server-to-server
+  const clean = origin.replace(/\/+$/, "").toLowerCase();
+  return (
+    ALLOWED_ORIGINS.some((allowed) => clean === allowed.replace(/\/+$/, "").toLowerCase()) ||
+    clean.endsWith(".vercel.app") ||
+    clean.includes("vercel.app")
+  );
+};
+
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow non-browser requests (e.g. curl, server-to-server, health checks)
-    if (!origin) return callback(null, true);
-
-    const cleanOrigin = origin.replace(/\/+$/, "");
-    if (
-      ALLOWED_ORIGINS.some((allowed) => cleanOrigin === allowed.replace(/\/+$/, "")) ||
-      cleanOrigin.endsWith(".vercel.app") ||
-      cleanOrigin.includes("vercel.app")
-    ) {
+    if (isOriginAllowed(origin)) {
       return callback(null, true);
     }
-
     console.warn(`[CORS Blocked] Origin not allowed: ${origin}`);
-    return callback(null, false);
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
   allowedHeaders: [
     "Content-Type",
     "Authorization",
@@ -55,12 +57,33 @@ const corsOptions = {
   ],
   exposedHeaders: ["Content-Length", "X-Response-Time"],
   maxAge: 86400, // 24 hours preflight cache
-  optionsSuccessStatus: 204,
+  optionsSuccessStatus: 200,
 };
 
 // Apply CORS middleware first, before body parsers and routes
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
+
+// Explicit fallback to ensure CORS headers on every response regardless of route state
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && isOriginAllowed(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization,X-Requested-With,Accept,Origin");
+  }
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+  next();
+});
+
+// Request Logging
+app.use((req, _res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - Origin: ${req.headers.origin || "none"}`);
+  next();
+});
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -77,17 +100,24 @@ app.get("/health", (_req, res) =>
 );
 
 // ── 404 fallthrough ─────────────────────────────────────────────────────────
-app.use((_req, res) => res.status(404).json({ success: false, error: "Not found" }));
+app.use((req, res) => {
+  const origin = req.headers.origin;
+  if (origin && isOriginAllowed(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+  res.status(404).json({ success: false, error: `Route not found: ${req.method} ${req.originalUrl}` });
+});
 
 // ── Global Error Handler (guarantees CORS headers even on uncaught errors) ──
 app.use((err, req, res, _next) => {
   console.error("[Unhandled Server Error]", err);
   const origin = req.headers.origin;
-  if (origin) {
-    res.header("Access-Control-Allow-Origin", origin);
-    res.header("Access-Control-Allow-Credentials", "true");
+  if (origin && isOriginAllowed(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
   }
-  res.status(500).json({ success: false, error: err?.message || "Internal server error" });
+  res.status(err.status || 500).json({ success: false, error: err?.message || "Internal server error" });
 });
 
 // ── Start ───────────────────────────────────────────────────────────────────

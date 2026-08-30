@@ -24,6 +24,11 @@ export default function AuthScreen({ initialMode = "signin" }) {
       await signInWithPopup(auth, googleProvider);
       navigate("canvas");
     } catch (err) {
+      if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
+        console.log("[Auth] Popup closed or cancelled by user.");
+        return;
+      }
+      console.warn("[Auth Google Error]", err);
       setError(err.message || "Google sign-in failed.");
     } finally {
       setLoading(false);

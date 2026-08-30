@@ -24,9 +24,10 @@ export function isMockMode() {
  * Core POST helper — calls real Express backend or returns mock data when mockMode is true.
  * @param {string} path
  * @param {object} body
+ * @param {number} [timeoutMs=75000]
  * @returns {Promise<ApiResponse>}
  */
-async function post(path, body) {
+async function post(path, body, timeoutMs = 75000) {
   if (mockMode) {
     await new Promise((r) => setTimeout(r, 400));
     if (path.includes("ingest")) {
@@ -38,12 +39,22 @@ async function post(path, body) {
     return { success: false, error: "Unknown mock path" };
   }
 
+  const targetUrl = `${API_BASE}${path}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    const res = await fetch(`${API_BASE}${path}`, {
+    const res = await fetch(targetUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
       body: JSON.stringify(body),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!res.ok) {
       const errJson = await res.json().catch(() => ({}));
@@ -56,7 +67,16 @@ async function post(path, body) {
 
     return await res.json();
   } catch (err) {
-    console.error(`[api-client] Network error calling ${path}:`, err);
+    clearTimeout(timeoutId);
+    if (err.name === "AbortError") {
+      console.error(`[api-client] Request timed out after ${timeoutMs}ms calling ${path}`);
+      return {
+        success: false,
+        error: "Request timed out. The backend server might be starting up (cold start). Please try again in a few moments.",
+      };
+    }
+
+    console.error(`[api-client] Network error calling ${targetUrl}:`, err);
     return {
       success: false,
       error: err instanceof Error ? err.message : String(err),
@@ -78,6 +98,11 @@ export const api = {
     if (res.success && res.data?.regions && res.data?.cards) {
       return res;
     }
+    // If it was a network error or 5xx, do not duplicate the failure with 2 sequential calls
+    if (!res.success && res.error && (res.error.includes("Failed to fetch") || res.error.includes("timed out"))) {
+      return res;
+    }
+
     // Fallback to 2-step pipeline if needed
     const detectRes = await api.detectRegions(imageBase64);
     if (!detectRes.success || !detectRes.data?.regions) return detectRes;

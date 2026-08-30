@@ -37,7 +37,7 @@ services:
         value: gemini-2.5-flash
 
       # ── CORS ─────────────────────────────────────────────────────────────
-      # Set CLIENT_ORIGIN to your Vercel URL after first deploy
-      # e.g. https://snapstudy.vercel.app
+      # Set CLIENT_ORIGIN to your Vercel URL
+      # e.g. https://snapstudy-ten.vercel.app
       - key: CLIENT_ORIGIN
-        sync: false              # Set manually in Render dashboard
+        value: https://snapstudy-ten.vercel.app

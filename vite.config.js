@@ -46,6 +46,9 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+    },
     // Proxy /api to Express only in local dev.
     // In production, VITE_API_URL points directly to Render.
     proxy: process.env.NODE_ENV !== "production"

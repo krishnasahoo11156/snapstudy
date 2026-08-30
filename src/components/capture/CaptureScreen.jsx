@@ -69,6 +69,7 @@ export default function CaptureScreen() {
       setErrorMessage("");
       setFileName(file.name);
       setSelectedRegionId(null);
+      setUploadProgress(0);
 
       // 1. Compress Image
       setCurrentStep("Compressing image…");
@@ -127,6 +128,48 @@ export default function CaptureScreen() {
     }
   };
 
+  const handleRetryAnalysis = async () => {
+    if (!rawBase64) {
+      handleReset();
+      return;
+    }
+    try {
+      setFlowState("processing");
+      setErrorMessage("");
+      setCurrentStep("Connecting to Gemini AI server…");
+
+      const ingestRes = await api.ingest(rawBase64);
+
+      if (!ingestRes.success || !ingestRes.data?.regions || !ingestRes.data?.cards) {
+        throw new Error(ingestRes.error || "Failed to process note image with AI.");
+      }
+
+      const { regions, cards } = ingestRes.data;
+      setDetectedRegions(regions);
+      setGeneratedCards(cards);
+
+      setCurrentStep("Saving photo and cards to your study deck…");
+      const photoId = `photo_${Date.now()}`;
+      setCurrentPhotoId(photoId);
+      const record = {
+        id: photoId,
+        uid: user?.uid || "guest_user",
+        originalPhotoUrl: previewUrl,
+        createdAt: new Date(),
+        regions,
+        cards,
+      };
+      savePhotoRecord(record).catch((e) => console.warn("Background save error:", e));
+
+      setFlowState("done");
+      setCurrentStep("");
+    } catch (err) {
+      console.error("[Retry Pipeline Error]", err);
+      setFlowState("error");
+      setErrorMessage(err instanceof Error ? err.message : String(err));
+    }
+  };
+
   const handleFileInput = (e) => {
     const file = e.target.files?.[0];
     if (file) processImageFile(file);
@@ -149,6 +192,7 @@ export default function CaptureScreen() {
     setCurrentPhotoId(null);
     setShowDeleteConfirm(false);
     setErrorMessage("");
+    setUploadProgress(0);
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -245,20 +289,22 @@ export default function CaptureScreen() {
           <h3 className="text-xl font-bold text-ink">Processing Study Notes</h3>
           <p className="mt-2 text-sm font-medium text-accent animate-pulse">{currentStep}</p>
 
-          {/* Stepper Progress */}
+          {/* Stepper Progress Breakdown */}
           <div className="mt-8 w-full space-y-3 rounded-2xl border border-paper-border bg-white p-5 text-left text-xs shadow-card">
-            <div className="flex items-center justify-between text-ink">
-              <span className="flex items-center gap-2">
-                <span className={`h-2 w-2 rounded-full ${uploadProgress > 0 ? "bg-emerald-500" : "bg-ink-tertiary"}`} />
-                Storage Ingestion
+            <div className="flex items-center justify-between text-ink pb-2 border-b border-paper-border">
+              <span className="flex items-center gap-2 font-medium">
+                <span className={`h-2.5 w-2.5 rounded-full ${uploadProgress === 100 ? "bg-emerald-500" : "bg-accent animate-pulse"}`} />
+                1. Storage & Note Cloud Sync
               </span>
               <span className="font-mono text-ink-secondary">{uploadProgress}%</span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-paper-warm border border-paper-border">
-              <div
-                className="h-full bg-accent transition-all duration-300"
-                style={{ width: `${uploadProgress}%` }}
-              />
+
+            <div className="flex items-center justify-between text-ink pt-1">
+              <span className="flex items-center gap-2 font-medium">
+                <span className="h-2.5 w-2.5 rounded-full bg-accent animate-ping" />
+                2. Gemini AI Flashcard Generation
+              </span>
+              <span className="text-[11px] text-accent font-semibold">Running</span>
             </div>
           </div>
         </div>
@@ -271,23 +317,31 @@ export default function CaptureScreen() {
             ⚠️
           </div>
           <h3 className="text-lg font-bold text-red-800">Processing Error</h3>
-          <p className="mt-1 text-xs text-red-600/90 font-mono">{errorMessage}</p>
-          <div className="mt-5 flex gap-3 justify-center">
+          <p className="mt-2 text-xs text-red-700 font-mono leading-relaxed bg-white/70 p-3 rounded-xl border border-red-200 text-left overflow-x-auto">
+            {errorMessage}
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2.5 justify-center">
+            <button
+              onClick={handleRetryAnalysis}
+              className="rounded-xl bg-accent px-4 py-2 text-xs font-semibold text-white hover:bg-accent-hover transition shadow-sm"
+            >
+              🔄 Retry Analysis
+            </button>
             <button
               onClick={handleReset}
               className="rounded-xl border border-paper-border bg-white px-4 py-2 text-xs font-semibold text-ink hover:bg-paper-warm transition shadow-sm"
             >
-              Try Another Image
+              Choose Another Image
             </button>
             <button
               onClick={() => {
                 setUseMock(true);
                 setMockMode(true);
-                setFlowState("idle");
+                handleRetryAnalysis();
               }}
-              className="rounded-xl bg-accent px-4 py-2 text-xs font-semibold text-white hover:bg-accent-hover transition shadow-sm"
+              className="rounded-xl border border-accent/40 bg-accent/10 px-4 py-2 text-xs font-semibold text-accent hover:bg-accent/20 transition shadow-sm"
             >
-              Switch to Mock Mode
+              Switch to Demo Mode
             </button>
           </div>
         </div>
