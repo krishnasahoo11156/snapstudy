@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
@@ -21,18 +21,13 @@ if (FIREBASE_CONFIGURED) {
 
   const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
-  db = getFirestore(app);
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
+  });
   storage = getStorage(app);
   googleProvider = new GoogleAuthProvider();
-
-  // Enable offline persistence for Firestore
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === "failed-precondition") {
-      console.warn("Firestore persistence: multiple tabs open — enabled in first tab only.");
-    } else if (err.code === "unimplemented") {
-      console.warn("Firestore persistence: browser does not support IndexedDB.");
-    }
-  });
 } else {
   console.warn(
     "[SnapStudy] Firebase not configured — add VITE_FIREBASE_* to your root .env file.\n" +
