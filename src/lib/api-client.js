@@ -1,0 +1,83 @@
+/** @import { ApiResponse, DetectRegionsResponse, GenerateCardsResponse, Region, RemediationPayload, RemediationResult } from "../types" */
+
+import {
+  generateMockRegions,
+  generateMockCards,
+  generateMockRemediation,
+} from "../data/mock-data";
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+
+/**
+ * Set to true while Branch B is building UI against mock data.
+ * Branch A flips this to false when real endpoints are ready.
+ */
+const MOCK_MODE = true;
+
+/**
+ * Core POST helper — returns mock data when MOCK_MODE is true,
+ * otherwise calls the real Express endpoint.
+ * @param {string} path
+ * @param {object} body
+ * @returns {Promise<ApiResponse>}
+ */
+async function post(path, body) {
+  if (MOCK_MODE) {
+    // Simulate a short network delay to surface loading states in UI
+    await new Promise((r) => setTimeout(r, 600));
+
+    if (path.includes("detect-regions")) {
+      return { success: true, data: generateMockRegions() };
+    }
+    if (path.includes("generate-cards")) {
+      return { success: true, data: generateMockCards() };
+    }
+    if (path.includes("remediate")) {
+      return { success: true, data: generateMockRemediation() };
+    }
+    return { success: false, error: "Unknown mock path" };
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const errorText = await res.text();
+      return { success: false, error: `HTTP ${res.status}: ${errorText}` };
+    }
+    return res.json();
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * Typed API surface — import this everywhere, never call fetch() directly.
+ */
+export const api = {
+  /**
+   * Call 1: Detect note regions in a photo.
+   * @param {string} imageBase64 - Base64-encoded JPEG
+   * @returns {Promise<ApiResponse & { data?: DetectRegionsResponse }>}
+   */
+  detectRegions: (imageBase64) => post("/detect-regions", { image: imageBase64 }),
+
+  /**
+   * Call 2: Generate type-aware flashcards from detected regions.
+   * @param {Region[]} regions
+   * @param {string} imageBase64
+   * @returns {Promise<ApiResponse & { data?: GenerateCardsResponse }>}
+   */
+  generateCards: (regions, imageBase64) =>
+    post("/generate-cards", { regions, image: imageBase64 }),
+
+  /**
+   * Call 3: Grounded remediation from a wrong answer + source crop.
+   * @param {RemediationPayload} payload
+   * @returns {Promise<ApiResponse & { data?: RemediationResult }>}
+   */
+  remediate: (payload) => post("/remediate", payload),
+};
