@@ -28,9 +28,9 @@ function ProgressRing({ percent, size = 48, stroke = 4 }) {
 }
 
 const MOCK_DECKS = [
-  { id: "deck_0", title: "Mathematics — Quadratic Equations", subject: "Math", cardCount: 4, masteredCount: 1, lastStudied: "Today", color: "from-blue-600 to-violet-600" },
-  { id: "deck_1", title: "Physics — Newton's Laws", subject: "Physics", cardCount: 8, masteredCount: 5, lastStudied: "Yesterday", color: "from-emerald-600 to-teal-600" },
-  { id: "deck_2", title: "Chemistry — Periodic Table", subject: "Chem", cardCount: 12, masteredCount: 3, lastStudied: "2 days ago", color: "from-orange-600 to-rose-600" },
+  { id: "deck_0", title: "Mathematics — Quadratic Equations", subject: "Math", emoji: "📐", cardCount: 4, masteredCount: 1, lastStudied: "Today", color: "from-blue-600 to-violet-600" },
+  { id: "deck_1", title: "Physics — Newton's Laws", subject: "Physics", emoji: "⚛️", cardCount: 8, masteredCount: 5, lastStudied: "Yesterday", color: "from-emerald-600 to-teal-600" },
+  { id: "deck_2", title: "Chemistry — Periodic Table", subject: "Chem", emoji: "🧪", cardCount: 12, masteredCount: 3, lastStudied: "2 days ago", color: "from-orange-600 to-rose-600" },
 ];
 
 export default function StudyDashboard() {
@@ -94,7 +94,19 @@ export default function StudyDashboard() {
                 onClick={() => setActiveQuiz(deck)}
                 id={`deck-card-${deck.id}`}
               >
-                {/* Subject badge */}
+                {/* Thumbnail */}
+                <div className={`relative mb-4 h-32 w-full overflow-hidden rounded-xl bg-gradient-to-br ${deck.color} opacity-85 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center border border-slate-700/30`}>
+                  {/* Notebook ruled grid pattern */}
+                  <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:12px_12px]" />
+                  {/* Floating abstract mathematical/diagram look using shapes */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-4xl select-none filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)] transform group-hover:scale-110 transition-transform duration-200">
+                      {deck.emoji}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Subject badge & Progress */}
                 <div className="mb-3 flex items-center justify-between">
                   <span className={`rounded-lg bg-gradient-to-r ${deck.color} px-2.5 py-1 text-xs font-semibold text-white`}>
                     {deck.subject}
