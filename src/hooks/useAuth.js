@@ -34,8 +34,21 @@ export function useAuth() {
   }, []);
 
   if (SUPABASE_CONFIGURED && supabase) {
-    return [sbUser, sbLoading, undefined];
+    const normalizedSb = sbUser
+      ? {
+          ...sbUser,
+          uid: sbUser.id, // alias uid to id so all user.uid references work
+        }
+      : null;
+    return [normalizedSb, sbLoading, undefined];
   }
 
-  return [fbUser, fbLoading, fbError];
+  const normalizedFb = fbUser
+    ? {
+        ...fbUser,
+        id: fbUser.uid, // alias id to uid
+      }
+    : null;
+
+  return [normalizedFb, fbLoading, fbError];
 }

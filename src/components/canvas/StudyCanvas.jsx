@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "../../lib/firebase";
-import { getPhotoRecords } from "../../lib/firestore";
+import { useAuth } from "../../hooks/useAuth";
+import { getPhotoRecords, deletePhotoRecord } from "../../lib/firestore";
 import { useNav } from "../../context/NavContext";
 import StickyNote from "./StickyNote";
 import Header from "../ui/Header";
@@ -13,23 +12,61 @@ const DEFAULT_STARTER_FOLDERS = [
   { id: "f4", name: "Physics & Notes", icon: "📝", itemCount: 1, lastStudied: "Recently", color: "green", decoration: "pin", pinColor: "#16A34A", rotation: 2, x: 780, y: 85, zIndex: 1 },
 ];
 
+function mergeScannedNotesWithFolders(baseFolders, records) {
+  if (!records || records.length === 0) return baseFolders;
+  const existingIds = new Set(baseFolders.map((f) => f.id));
+  const newFolders = [...baseFolders];
+
+  records.forEach((rec, idx) => {
+    const recFolderId = `scanned_${rec.id}`;
+    if (!existingIds.has(recFolderId)) {
+      newFolders.push({
+        id: recFolderId,
+        name: rec.regions?.[0]?.label
+          ? rec.regions[0].label
+          : (rec.fileName || `Note Scan #${records.length - idx}`),
+        icon: "📸",
+        itemCount: rec.cards?.length || 1,
+        lastStudied: "Just now",
+        color: ["yellow", "mint", "peach", "lavender", "blue"][idx % 5],
+        decoration: "tape",
+        rotation: (Math.random() - 0.5) * 3,
+        x: 210 + (newFolders.length % 4) * 190,
+        y: 90 + Math.floor(newFolders.length / 4) * 210,
+        zIndex: 1,
+        cards: rec.cards || [],
+        regions: rec.regions || [],
+        photoUrl: rec.originalPhotoUrl || null,
+        isScannedNote: true,
+      });
+    }
+  });
+
+  return newFolders;
+}
+
 const WEEK_DAYS = ["M", "T", "W", "T", "F", "S", "S"];
 const STREAK_DONE = [true, true, true, true, true, true, false];
 
 export default function StudyCanvas() {
   const { navigate } = useNav();
-  const [user] = auth ? useAuthState(auth) : [null];
-  const uid = user?.uid || "guest_user";
+  const [user] = useAuth();
+  const uid = user?.id || user?.uid || "guest_user";
   const storageKey = `snapstudy_folders_${uid}`;
 
   const [folders, setFolders] = useState(() => {
     try {
       const saved = localStorage.getItem(storageKey);
-      if (saved) return JSON.parse(saved);
+      const base = saved ? JSON.parse(saved) : DEFAULT_STARTER_FOLDERS;
+      const cachedPhotos = JSON.parse(localStorage.getItem("snapstudy_cached_photos") || "[]");
+      const filteredPhotos = uid && uid !== "guest_user"
+        ? cachedPhotos.filter((p) => p.uid === uid || !p.uid)
+        : cachedPhotos;
+      return mergeScannedNotesWithFolders(base, filteredPhotos);
     } catch (e) {
       console.warn("Failed to load initial folders from localStorage:", e);
+      return DEFAULT_STARTER_FOLDERS;
     }
-    return DEFAULT_STARTER_FOLDERS;
   });
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -38,54 +75,34 @@ export default function StudyCanvas() {
   const [newFolderIcon, setNewFolderIcon] = useState("📁");
   const canvasRef = useRef(null);
 
-  // Reload user folders & sync with Firestore when user logs in or switches account
+  // Reload user folders & sync with Supabase / Firestore in background
   useEffect(() => {
-    // 1. Initial reload from user's localStorage
+    // 1. Instant sync from user's localStorage
     try {
       const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        setFolders(JSON.parse(saved));
-      } else {
-        setFolders(DEFAULT_STARTER_FOLDERS);
-      }
+      const base = saved ? JSON.parse(saved) : DEFAULT_STARTER_FOLDERS;
+      const cachedPhotos = JSON.parse(localStorage.getItem("snapstudy_cached_photos") || "[]");
+      const filteredPhotos = uid && uid !== "guest_user"
+        ? cachedPhotos.filter((p) => p.uid === uid || !p.uid)
+        : cachedPhotos;
+      setFolders(mergeScannedNotesWithFolders(base, filteredPhotos));
     } catch (e) {
       console.warn("Failed to load user folders from localStorage:", e);
     }
 
-    // 2. Sync with cloud Firestore photo records
+    // 2. Background sync with cloud records
     const loadUserScannedNotes = async () => {
       try {
         const records = await getPhotoRecords(uid);
         if (records && records.length > 0) {
           setFolders((prev) => {
-            const existingIds = new Set(prev.map((f) => f.id));
-            const newFolders = [...prev];
-
-            records.forEach((rec, idx) => {
-              const recFolderId = `scanned_${rec.id}`;
-              if (!existingIds.has(recFolderId)) {
-                newFolders.push({
-                  id: recFolderId,
-                  name: rec.regions?.[0]?.label ? rec.regions[0].label : `Note Scan #${records.length - idx}`,
-                  icon: "📸",
-                  itemCount: rec.cards?.length || 1,
-                  lastStudied: "Just now",
-                  color: ["yellow", "mint", "peach", "lavender", "blue"][idx % 5],
-                  decoration: "tape",
-                  rotation: (Math.random() - 0.5) * 3,
-                  x: 210 + (newFolders.length % 4) * 190,
-                  y: 90 + Math.floor(newFolders.length / 4) * 210,
-                  zIndex: 1,
-                  cards: rec.cards || [],
-                  regions: rec.regions || [],
-                  photoUrl: rec.originalPhotoUrl || null,
-                  isScannedNote: true,
-                });
-              }
-            });
-
-            localStorage.setItem(storageKey, JSON.stringify(newFolders));
-            return newFolders;
+            const updated = mergeScannedNotesWithFolders(prev, records);
+            try {
+              localStorage.setItem(storageKey, JSON.stringify(updated));
+            } catch (e) {
+              console.warn("Failed to persist updated folders:", e);
+            }
+            return updated;
           });
         }
       } catch (err) {
@@ -124,6 +141,12 @@ export default function StudyCanvas() {
 
   const handleDelete = (id) => {
     saveAndSetFolders((prev) => prev.filter((f) => f.id !== id));
+    if (id.startsWith("scanned_")) {
+      const originalPhotoId = id.replace("scanned_", "");
+      deletePhotoRecord(originalPhotoId, uid).catch((e) =>
+        console.warn("Failed to delete scanned record:", e)
+      );
+    }
   };
 
   const handleRename = (id, name) => {

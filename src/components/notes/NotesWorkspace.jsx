@@ -102,7 +102,10 @@ export default function NotesWorkspace() {
     if (chapter.id !== "c1") {
       try {
         const cached = JSON.parse(localStorage.getItem(chaptersStorageKey) || "[]");
-        const next = cached.map((c) => (c.id === chapter.id ? { ...c, name: newTitle } : c));
+        const idx = cached.findIndex((c) => c.id === chapter.id);
+        const next = idx >= 0
+          ? cached.map((c) => (c.id === chapter.id ? { ...c, name: newTitle } : c))
+          : [...cached, updatedChapter];
         localStorage.setItem(chaptersStorageKey, JSON.stringify(next));
       } catch (e) {
         console.warn("Failed to persist updated note title:", e);
@@ -118,7 +121,10 @@ export default function NotesWorkspace() {
     if (chapter.id !== "c1") {
       try {
         const cached = JSON.parse(localStorage.getItem(chaptersStorageKey) || "[]");
-        const next = cached.map((c) => (c.id === chapter.id ? { ...c, notesText: newText } : c));
+        const idx = cached.findIndex((c) => c.id === chapter.id);
+        const next = idx >= 0
+          ? cached.map((c) => (c.id === chapter.id ? { ...c, notesText: newText } : c))
+          : [...cached, updatedChapter];
         localStorage.setItem(chaptersStorageKey, JSON.stringify(next));
       } catch (e) {
         console.warn("Failed to persist updated note text:", e);

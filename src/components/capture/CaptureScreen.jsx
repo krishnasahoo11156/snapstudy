@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "../../lib/firebase";
+import { useAuth } from "../../hooks/useAuth";
 import { compressImage, uploadPhotoToStorage } from "../../lib/storage";
 import { savePhotoRecord, deletePhotoRecord } from "../../lib/firestore";
 import { api, isMockMode, setMockMode } from "../../lib/api-client";
@@ -15,7 +14,7 @@ const CARD_TYPE_BADGES = {
 };
 
 export default function CaptureScreen({ initialMode = "auto" }) {
-  const [user] = auth ? useAuthState(auth) : [null];
+  const [user] = useAuth();
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -214,7 +213,7 @@ export default function CaptureScreen({ initialMode = "auto" }) {
       setCurrentPhotoId(photoId);
       const record = {
         id: photoId,
-        uid: user?.uid || "guest_user",
+        uid: user?.id || user?.uid || "guest_user",
         fileName,
         isDocument,
         originalPhotoUrl: previewUrl,
