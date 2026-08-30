@@ -140,12 +140,11 @@ export async function generateWithModelFallback(promptParts, tier = "primary", c
     for (const key of keyList) {
       try {
         console.log(`[Gemini Request] Endpoint: ${callType} | Selected Model: ${modelName} | Key: ${key ? `***${key.slice(-4)}` : "default"}`);
-        const model = getModel(tier, modelName, callType, key);
-
-        // 8-second safety timeout per key attempt
+        // 45-second generous timeout per key to allow full multimodal vision analysis
+        const TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 45000;
         const resultPromise = model.generateContent(promptParts);
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error(`Gemini request timeout on key ${key ? `***${key.slice(-4)}` : "default"}`)), 8000)
+          setTimeout(() => reject(new Error(`Gemini request timeout on key ${key ? `***${key.slice(-4)}` : "default"}`)), TIMEOUT_MS)
         );
 
         const result = await Promise.race([resultPromise, timeoutPromise]);
