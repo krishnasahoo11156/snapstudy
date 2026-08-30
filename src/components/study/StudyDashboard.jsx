@@ -1,6 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { generateMockCards } from "../../data/mock-data";
 import QuizScreen from "../quiz/QuizScreen";
+import { FIREBASE_CONFIGURED, db } from "../../lib/firebase";
+import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
+import { useAuth } from "../../hooks/useAuth";
+import { useOffline } from "../../hooks/useOffline";
 
 /** Progress ring SVG component */
 function ProgressRing({ percent, size = 48, stroke = 4 }) {
@@ -35,27 +39,97 @@ const MOCK_DECKS = [
 
 export default function StudyDashboard() {
   const [activeQuiz, setActiveQuiz] = useState(null);
+  const [realDecks, setRealDecks] = useState(null); // null = not yet loaded
+  const [syncing, setSyncing] = useState(false);
+  const isOffline = useOffline();
+  const [user] = FIREBASE_CONFIGURED ? useAuth() : [null];
+
+  // B10: Firestore real-time listener — loads PhotoRecord decks for the signed-in user
+  useEffect(() => {
+    if (!FIREBASE_CONFIGURED || !user) return;
+
+    setSyncing(true);
+    const q = query(
+      collection(db, "photos"),
+      where("uid", "==", user.uid),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      const decks = snap.docs.map((doc) => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          title: d.title || "Untitled Notes",
+          subject: d.subject || "Notes",
+          emoji: d.emoji || "📓",
+          cardCount: (d.cards || []).length,
+          masteredCount: 0, // will be populated from quizSessions in future
+          lastStudied: d.createdAt?.toDate
+            ? new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(
+                Math.round((d.createdAt.toDate() - Date.now()) / 86400000),
+                "day"
+              )
+            : "Recently",
+          color: "from-blue-600 to-violet-600",
+          cards: d.cards || [],
+          photoUrl: d.originalPhotoUrl || null,
+        };
+      });
+      setRealDecks(decks);
+      setSyncing(false);
+    }, () => {
+      // On error, fall back to mocks
+      setRealDecks(null);
+      setSyncing(false);
+    });
+
+    return () => unsub();
+  }, [user]);
+
+  const decks = realDecks !== null ? realDecks : MOCK_DECKS;
+  const usingMocks = realDecks === null;
 
   if (activeQuiz) {
+    const cards = activeQuiz.cards?.length ? activeQuiz.cards : generateMockCards().cards;
     return (
       <QuizScreen
         deck={activeQuiz}
-        cards={generateMockCards().cards}
+        cards={cards}
         onExit={() => setActiveQuiz(null)}
       />
     );
   }
 
-  const recentDeck = MOCK_DECKS[0];
+  const recentDeck = decks[0] || MOCK_DECKS[0];
 
   return (
     <div className="min-h-full p-6 animate-fade-in">
-      {/* Header */}
+      {/* Header with sync/offline indicators */}
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-100">Study Dashboard</h2>
-        <p className="mt-1 text-sm text-slate-400">
-          {MOCK_DECKS.reduce((acc, d) => acc + d.cardCount, 0)} cards across {MOCK_DECKS.length} decks
-        </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-100">Study Dashboard</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              {decks.reduce((acc, d) => acc + d.cardCount, 0)} cards across {decks.length} decks
+              {usingMocks && <span className="ml-2 text-xs text-amber-400/70">(demo data)</span>}
+            </p>
+          </div>
+          {/* Sync / Offline status badge */}
+          {syncing && !isOffline && (
+            <div className="flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs text-blue-400">
+              <svg className="h-3 w-3 animate-sync-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Syncing…
+            </div>
+          )}
+          {isOffline && (
+            <div className="flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs text-amber-400">
+              <span>📴</span> Offline
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Continue Studying CTA */}
@@ -85,8 +159,14 @@ export default function StudyDashboard() {
       <div>
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">Your Decks</h3>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {MOCK_DECKS.map((deck) => {
-            const mastery = Math.round((deck.masteredCount / deck.cardCount) * 100);
+          {decks.length === 0 ? (
+            <div className="col-span-full flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-700 p-12 text-center">
+              <span className="text-4xl">📷</span>
+              <p className="text-sm font-medium text-slate-300">No decks yet</p>
+              <p className="text-xs text-slate-500">Capture your first notes to create a study deck</p>
+            </div>
+          ) : decks.map((deck) => {
+            const mastery = deck.cardCount > 0 ? Math.round((deck.masteredCount / deck.cardCount) * 100) : 0;
             return (
               <div
                 key={deck.id}
@@ -94,16 +174,20 @@ export default function StudyDashboard() {
                 onClick={() => setActiveQuiz(deck)}
                 id={`deck-card-${deck.id}`}
               >
-                {/* Thumbnail */}
+                {/* Thumbnail — real photo or styled gradient fallback */}
                 <div className={`relative mb-4 h-32 w-full overflow-hidden rounded-xl bg-gradient-to-br ${deck.color} opacity-85 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center border border-slate-700/30`}>
-                  {/* Notebook ruled grid pattern */}
-                  <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:12px_12px]" />
-                  {/* Floating abstract mathematical/diagram look using shapes */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-4xl select-none filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)] transform group-hover:scale-110 transition-transform duration-200">
-                      {deck.emoji}
-                    </span>
-                  </div>
+                  {deck.photoUrl ? (
+                    <img src={deck.photoUrl} alt={deck.title} className="h-full w-full object-cover" />
+                  ) : (
+                    <>
+                      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:12px_12px]" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-4xl select-none filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)] transform group-hover:scale-110 transition-transform duration-200">
+                          {deck.emoji}
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Subject badge & Progress */}
