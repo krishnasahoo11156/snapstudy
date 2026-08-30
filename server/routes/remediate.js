@@ -37,7 +37,7 @@ router.post("/", async (req, res) => {
       });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY_REMEDIATE) {
       return res.status(501).json({
         success: false,
         error: "GEMINI_API_KEY is not configured on the server.",

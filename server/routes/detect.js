@@ -18,7 +18,7 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ success: false, error: "Missing image field in request body" });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY_DETECT) {
       return res.status(501).json({
         success: false,
         error: "GEMINI_API_KEY is not configured on the server.",
