@@ -64,6 +64,7 @@ export default function StudyCanvas() {
             records.forEach((rec, idx) => {
               const recFolderId = `scanned_${rec.id}`;
               if (!existingIds.has(recFolderId)) {
+                existingIds.add(recFolderId); // Prevent duplicate items in the loop
                 newFolders.push({
                   id: recFolderId,
                   name: rec.regions?.[0]?.label ? rec.regions[0].label : `Note Scan #${records.length - idx}`,

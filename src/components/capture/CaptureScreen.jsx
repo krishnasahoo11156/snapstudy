@@ -382,6 +382,7 @@ export default function CaptureScreen({ initialMode = "auto" }) {
               accept="image/*"
               capture="environment"
               onChange={handleFileInput}
+              onClick={(e) => e.stopPropagation()}
               className="sr-only"
             />
             <input
@@ -390,6 +391,7 @@ export default function CaptureScreen({ initialMode = "auto" }) {
               type="file"
               accept=".pdf,.txt,.md,.doc,.docx,application/pdf,text/plain,image/*"
               onChange={handleFileInput}
+              onClick={(e) => e.stopPropagation()}
               className="sr-only"
             />
           </div>
