@@ -46,26 +46,21 @@ async function post(path, body) {
     });
 
     if (!res.ok) {
-      console.warn(`[api-client] Remote API ${path} returned HTTP ${res.status}. Falling back to mock dataset.`);
-      if (path.includes("ingest")) {
-        return { success: true, data: { regions: generateMockRegions().regions, cards: generateMockCards().cards }, fallback: true };
-      }
-      if (path.includes("detect-regions")) return { success: true, data: generateMockRegions(), fallback: true };
-      if (path.includes("generate-cards")) return { success: true, data: generateMockCards(), fallback: true };
-      if (path.includes("remediate")) return { success: true, data: generateMockRemediation(), fallback: true };
-      return { success: false, error: `HTTP ${res.status}` };
+      const errJson = await res.json().catch(() => ({}));
+      console.error(`[api-client] API ${path} returned HTTP ${res.status}:`, errJson);
+      return {
+        success: false,
+        error: errJson.error || `Server returned HTTP ${res.status}`,
+      };
     }
 
     return await res.json();
   } catch (err) {
-    console.warn(`[api-client] Network error calling ${path} (${err.message}). Falling back to mock dataset for seamless demonstration.`);
-    if (path.includes("ingest")) {
-      return { success: true, data: { regions: generateMockRegions().regions, cards: generateMockCards().cards }, fallback: true };
-    }
-    if (path.includes("detect-regions")) return { success: true, data: generateMockRegions(), fallback: true };
-    if (path.includes("generate-cards")) return { success: true, data: generateMockCards(), fallback: true };
-    if (path.includes("remediate")) return { success: true, data: generateMockRemediation(), fallback: true };
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
+    console.error(`[api-client] Network error calling ${path}:`, err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 

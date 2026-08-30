@@ -21,18 +21,17 @@ function getGenAI() {
  *   - "live"  → MODEL_LIVE env var  (e.g. gemini-1.5-flash-8b) — for low-latency remediation
  * @returns {import("@google/generative-ai").GenerativeModel}
  */
-export function getModel(tier) {
+export function getModel(tier, overrideModel = null) {
   const genAI = getGenAI();
   const envModel =
     tier === "batch"
       ? process.env.MODEL_BATCH
       : process.env.MODEL_LIVE;
 
-  // Use configured env var if present and not outdated gemini-1.5-flash/2.0-flash, else use gemini-2.5-flash
   const modelName =
-    envModel && !envModel.startsWith("gemini-1.5") && !envModel.startsWith("gemini-2.0")
-      ? envModel
-      : "gemini-2.5-flash";
+    overrideModel ||
+    envModel ||
+    (tier === "batch" ? "gemini-3.5-flash" : "gemini-3.5-flash-lite");
 
   return genAI.getGenerativeModel({
     model: modelName,
@@ -60,26 +59,28 @@ export function parseGeminiJson(text) {
 }
 
 /**
- * Retry helper — wraps a Gemini call with exponential backoff.
- * Use for batch calls that can tolerate slight delays.
- *
- * @param {() => Promise<T>} fn
- * @param {number} maxRetries
- * @returns {Promise<T>}
- * @template T
+ * Call Gemini with automatic model failover if the primary model is busy or hits quota.
+ * @param {any[]} promptParts
+ * @param {"batch"|"live"} tier
+ * @returns {Promise<string>}
  */
-export async function withRetry(fn, maxRetries = 3) {
-  let lastErr;
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
+export async function generateWithModelFallback(promptParts, tier = "batch") {
+  const candidateModels =
+    tier === "batch"
+      ? ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]
+      : ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.1-flash-lite"];
+
+  let lastError;
+  for (const modelName of candidateModels) {
     try {
-      return await fn();
+      const model = getModel(tier, modelName);
+      const result = await model.generateContent(promptParts);
+      return result.response.text();
     } catch (err) {
-      lastErr = err;
-      const backoffMs = 1000 * Math.pow(2, attempt);
-      console.warn(`[gemini] Attempt ${attempt + 1} failed: ${err?.message || err}. Retrying in ${backoffMs}ms…`);
-      await new Promise((r) => setTimeout(r, backoffMs));
+      console.warn(`[gemini] Model ${modelName} failed (${err?.message || err}). Trying fallback…`);
+      lastError = err;
     }
   }
-  throw lastErr;
+  throw lastError;
 }
 

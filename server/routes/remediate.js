@@ -1,5 +1,5 @@
 import express from "express";
-import { getModel, parseGeminiJson } from "../services/gemini.js";
+import { generateWithModelFallback, parseGeminiJson } from "../services/gemini.js";
 import { cropBase64Image, normalizeBox } from "../services/crop.js";
 import { remediationPrompt } from "../utils/prompts.js";
 
@@ -74,7 +74,6 @@ router.post("/", async (req, res) => {
       }
     }
 
-    const model = getModel("live");
     const prompt = remediationPrompt(wrongAnswer, correctAnswer, regionContext, cardType);
 
     const contentParts = [prompt];
@@ -85,8 +84,7 @@ router.post("/", async (req, res) => {
       console.warn("[remediate] No crop or image provided — using text-only fallback");
     }
 
-    const result = await model.generateContent(contentParts);
-    const text = result.response.text();
+    const text = await generateWithModelFallback(contentParts, "live");
     const parsed = parseGeminiJson(text);
 
     const data = {

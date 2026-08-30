@@ -1,5 +1,5 @@
 import express from "express";
-import { getModel, parseGeminiJson } from "../services/gemini.js";
+import { generateWithModelFallback, parseGeminiJson } from "../services/gemini.js";
 import { flashcardGenerationPrompt } from "../utils/prompts.js";
 
 const router = express.Router();
@@ -30,14 +30,11 @@ router.post("/", async (req, res) => {
 
     const cleanBase64 = image.replace(/^data:image\/\w+;base64,/, "").trim();
 
-    const model = getModel("batch");
     const prompt = flashcardGenerationPrompt(regions);
-    const result = await model.generateContent([
+    const text = await generateWithModelFallback([
       prompt,
       { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } },
-    ]);
-
-    const text = result.response.text();
+    ], "batch");
     const parsed = parseGeminiJson(text);
 
     if (!parsed.cards || !Array.isArray(parsed.cards)) {

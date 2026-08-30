@@ -1,5 +1,5 @@
 import express from "express";
-import { getModel, parseGeminiJson } from "../services/gemini.js";
+import { generateWithModelFallback, parseGeminiJson } from "../services/gemini.js";
 import { normalizeBox } from "../services/crop.js";
 import { regionDetectionPrompt } from "../utils/prompts.js";
 
@@ -27,13 +27,10 @@ router.post("/", async (req, res) => {
 
     const cleanBase64 = image.replace(/^data:image\/\w+;base64,/, "").trim();
 
-    const model = getModel("batch");
-    const result = await model.generateContent([
+    const text = await generateWithModelFallback([
       regionDetectionPrompt,
       { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } },
-    ]);
-
-    const text = result.response.text();
+    ], "batch");
     const parsed = parseGeminiJson(text);
 
     if (!parsed.regions || !Array.isArray(parsed.regions)) {
