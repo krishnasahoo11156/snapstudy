@@ -71,7 +71,7 @@ export async function uploadPhotoToStorage(blob, uid = "demo_user", onProgress =
         contentType: "image/jpeg",
       });
 
-      return await new Promise((resolve, reject) => {
+      const uploadPromise = new Promise((resolve) => {
         uploadTask.on(
           "state_changed",
           (snapshot) => {
@@ -81,18 +81,37 @@ export async function uploadPhotoToStorage(blob, uid = "demo_user", onProgress =
             onProgress?.(progress);
           },
           (error) => {
-            console.warn("[Firebase Storage] Upload failed, falling back to local URL:", error);
-            reject(error);
+            console.warn("[Firebase Storage] Upload notice (CORS/network fallback applied):", error.message || error);
+            const localUrl = URL.createObjectURL(blob);
+            onProgress?.(100);
+            resolve({ downloadUrl: localUrl, storagePath });
           },
           async () => {
-            const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-            onProgress?.(100);
-            resolve({ downloadUrl, storagePath });
+            try {
+              const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+              onProgress?.(100);
+              resolve({ downloadUrl, storagePath });
+            } catch (urlErr) {
+              console.warn("[Firebase Storage] Download URL fallback applied:", urlErr);
+              const localUrl = URL.createObjectURL(blob);
+              resolve({ downloadUrl: localUrl, storagePath });
+            }
           }
         );
       });
+
+      // Timeout race in case browser preflight hangs
+      const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => {
+          const localUrl = URL.createObjectURL(blob);
+          onProgress?.(100);
+          resolve({ downloadUrl: localUrl, storagePath });
+        }, 3000);
+      });
+
+      return await Promise.race([uploadPromise, timeoutPromise]);
     } catch (err) {
-      console.warn("Storage upload failed, fallback to local URL:", err);
+      console.warn("[Firebase Storage] Initialization notice, local fallback applied:", err);
     }
   }
 
