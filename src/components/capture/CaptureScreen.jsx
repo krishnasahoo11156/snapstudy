@@ -54,13 +54,14 @@ export default function CaptureScreen() {
       const cleanBase64 = compressed.dataUrl.replace(/^data:image\/\w+;base64,/, "");
       setRawBase64(cleanBase64);
 
-      // 2. Upload to Firebase Storage
-      setCurrentStep("Uploading to Storage…");
+      // 2. Upload to Free Storage
+      setCurrentStep("Processing & saving note image…");
       const uid = user?.uid || "guest_user";
       const { downloadUrl, storagePath } = await uploadPhotoToStorage(
         compressed.blob,
         uid,
-        (progress) => setUploadProgress(progress)
+        (progress) => setUploadProgress(progress),
+        compressed.dataUrl
       );
 
       // 3. Gemini Call 1: Detect Regions
