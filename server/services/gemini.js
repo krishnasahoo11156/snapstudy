@@ -25,8 +25,8 @@ export function getModel(tier) {
   const genAI = getGenAI();
   const modelName =
     tier === "batch"
-      ? process.env.MODEL_BATCH || "gemini-1.5-flash"
-      : process.env.MODEL_LIVE || "gemini-1.5-flash-8b";
+      ? process.env.MODEL_BATCH || "gemini-2.0-flash"
+      : process.env.MODEL_LIVE || "gemini-2.0-flash-lite";
 
   return genAI.getGenerativeModel({
     model: modelName,

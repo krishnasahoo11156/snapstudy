@@ -6,7 +6,7 @@ import {
   generateMockRemediation,
 } from "../data/mock-data";
 
-const RAW_URL = import.meta.env.VITE_API_URL || "https://snapstudy-api.onrender.com/api";
+const RAW_URL = import.meta.env.VITE_API_URL || "https://snapstudy-b63k.onrender.com/api";
 const API_BASE = RAW_URL.endsWith("/api") ? RAW_URL : `${RAW_URL.replace(/\/+$/, "")}/api`;
 
 // Default to real backend; can be toggled by UI or when offline
