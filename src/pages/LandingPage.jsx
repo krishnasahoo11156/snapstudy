@@ -1,4 +1,5 @@
 import { useNav } from "../context/NavContext";
+import { Sparkles, Flame, Smartphone, Camera, Brain, Layers, MessageSquare, Compass } from "lucide-react";
 
 export default function LandingPage() {
   const { navigate } = useNav();
