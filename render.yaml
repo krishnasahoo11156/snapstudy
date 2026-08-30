@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: snapstudy-api
+    runtime: node
+    plan: free
+    region: oregon
+
+    # Build: install all deps (including sharp native binaries)
+    buildCommand: npm install --include=optional
+
+    # Start: run the Express server directly
+    startCommand: node server/index.js
+
+    # Health check — Render uses this to confirm the service is up
+    healthCheckPath: /health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000             # Render assigns this automatically, but explicit is fine
+
+      # ── Gemini ───────────────────────────────────────────────────────────
+      - key: GEMINI_API_KEY
+        sync: false              # Set manually in Render dashboard
+
+      - key: MODEL_BATCH
+        value: gemini-1.5-flash
+
+      - key: MODEL_LIVE
+        value: gemini-1.5-flash-8b
+
+      # ── CORS ─────────────────────────────────────────────────────────────
+      # Set CLIENT_ORIGIN to your Vercel URL after first deploy
+      # e.g. https://snapstudy.vercel.app
+      - key: CLIENT_ORIGIN
+        sync: false              # Set manually in Render dashboard

@@ -15,7 +15,25 @@ dotenv.config({ path: join(__dirname, ".env") });
 const app = express();
 
 // ── Middleware ──────────────────────────────────────────────────────────────
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || "http://localhost:5173" }));
+const ALLOWED_ORIGINS = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  process.env.CLIENT_ORIGIN,           // e.g. https://snapstudy.vercel.app
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow server-to-server / curl with no origin
+      if (!origin) return callback(null, true);
+      // Allow any *.vercel.app preview deployment
+      if (origin.endsWith(".vercel.app")) return callback(null, true);
+      if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: "10mb" }));
 
 // ── Routes ──────────────────────────────────────────────────────────────────
