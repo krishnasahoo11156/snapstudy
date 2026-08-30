@@ -1,29 +1,77 @@
 import express from "express";
-import { getModel } from "../services/gemini.js";
+import { getModel, parseGeminiJson } from "../services/gemini.js";
+import { cropBase64Image } from "../services/crop.js";
 import { remediationPrompt } from "../utils/prompts.js";
 
 const router = express.Router();
 
 /**
  * POST /api/remediate
- * Body: RemediationPayload
+ * Body: {
+ *   cropImageBase64?: string,
+ *   originalImageBase64?: string,
+ *   box_2d?: Box2D,
+ *   wrongAnswer: string,
+ *   correctAnswer: string,
+ *   regionContext: Region,
+ *   cardType: CardType
+ * }
  * Returns: { success: true, data: RemediationResult }
- *
- * Branch A implements this. Currently a stub.
  */
 router.post("/", async (req, res) => {
   try {
-    const { cropImageBase64, wrongAnswer, correctAnswer, regionContext, cardType } = req.body;
+    const {
+      cropImageBase64,
+      originalImageBase64,
+      box_2d,
+      wrongAnswer,
+      correctAnswer,
+      regionContext,
+      cardType = "qa",
+    } = req.body;
 
     if (!wrongAnswer || !correctAnswer || !regionContext) {
-      return res.status(400).json({ success: false, error: "Missing required remediation fields" });
+      return res.status(400).json({
+        success: false,
+        error: "Missing required remediation fields (wrongAnswer, correctAnswer, regionContext)",
+      });
     }
 
     if (!process.env.GEMINI_API_KEY) {
       return res.status(501).json({
         success: false,
-        error: "GEMINI_API_KEY not set. Branch A: implement this endpoint.",
+        error: "GEMINI_API_KEY is not configured on the server.",
       });
+    }
+
+    let finalCropBase64 = cropImageBase64
+      ? cropImageBase64.replace(/^data:image\/\w+;base64,/, "").trim()
+      : null;
+
+    // If no crop provided, check if bounding box is reliable
+    if (!finalCropBase64 && originalImageBase64) {
+      const rawBox = box_2d || regionContext.box_2d;
+      const boxToCrop = rawBox ? normalizeBox(rawBox) : null;
+      const isReliable =
+        boxToCrop &&
+        boxToCrop.xmax - boxToCrop.xmin >= 10 &&
+        boxToCrop.ymax - boxToCrop.ymin >= 10 &&
+        boxToCrop.xmin >= 0 &&
+        boxToCrop.ymin >= 0 &&
+        boxToCrop.xmax <= 1000 &&
+        boxToCrop.ymax <= 1000;
+
+      if (isReliable) {
+        try {
+          finalCropBase64 = await cropBase64Image(originalImageBase64, boxToCrop);
+        } catch (cropErr) {
+          console.warn("[remediate] Crop unreliable, using full-page fallback:", cropErr);
+          finalCropBase64 = originalImageBase64.replace(/^data:image\/\w+;base64,/, "").trim();
+        }
+      } else {
+        console.warn("[remediate] Crop unreliable, using full-page fallback");
+        finalCropBase64 = originalImageBase64.replace(/^data:image\/\w+;base64,/, "").trim();
+      }
     }
 
     const model = getModel("live");
@@ -31,20 +79,25 @@ router.post("/", async (req, res) => {
 
     const contentParts = [prompt];
 
-    // If we have a crop, include it; otherwise fall back to full-page context
-    if (cropImageBase64) {
-      contentParts.push({ inlineData: { data: cropImageBase64, mimeType: "image/jpeg" } });
+    if (finalCropBase64) {
+      contentParts.push({ inlineData: { data: finalCropBase64, mimeType: "image/jpeg" } });
     } else {
-      console.warn("[remediate] No crop image provided — using text-only fallback");
+      console.warn("[remediate] No crop or image provided — using text-only fallback");
     }
 
     const result = await model.generateContent(contentParts);
     const text = result.response.text();
-    const parsed = JSON.parse(text);
+    const parsed = parseGeminiJson(text);
 
-    res.json({ success: true, data: parsed });
+    const data = {
+      explanation: parsed.explanation || "Review your notes for this section to understand the correct concept.",
+      hints: Array.isArray(parsed.hints) ? parsed.hints : ["Review the region highlighted in your notes."],
+      referencesSource: parsed.referencesSource ?? !!finalCropBase64,
+    };
+
+    res.json({ success: true, data });
   } catch (err) {
-    console.error("[remediate]", err);
+    console.error("[remediate error]", err);
     res.status(500).json({
       success: false,
       error: err instanceof Error ? err.message : String(err),
@@ -53,3 +106,4 @@ router.post("/", async (req, res) => {
 });
 
 export default router;
+

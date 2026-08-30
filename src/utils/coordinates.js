@@ -1,10 +1,27 @@
 /** @import { Box2D, PixelBox } from "../types" */
 
+export function normalizeBox(box) {
+  if (Array.isArray(box)) {
+    return {
+      ymin: Number(box[0]) || 0,
+      xmin: Number(box[1]) || 0,
+      ymax: Number(box[2]) || 1000,
+      xmax: Number(box[3]) || 1000,
+    };
+  }
+  return {
+    ymin: Number(box?.ymin) || 0,
+    xmin: Number(box?.xmin) || 0,
+    ymax: Number(box?.ymax) || 1000,
+    xmax: Number(box?.xmax) || 1000,
+  };
+}
+
 /**
  * Convert a Gemini-normalized bounding box (0–1000 scale) to pixel coordinates
  * for a given image rendered at a specific pixel size.
  *
- * @param {Box2D} box - Normalized box from Gemini (0–1000 per axis)
+ * @param {Box2D | [number, number, number, number]} rawBox - Normalized box from Gemini (0–1000 per axis)
  * @param {number} imgWidth - Rendered image width in pixels
  * @param {number} imgHeight - Rendered image height in pixels
  * @returns {PixelBox}
@@ -14,7 +31,8 @@
  * // → { x:50, y:50, width:900, height:250 }
  * normalizedToPixel({ ymin:50, xmin:50, ymax:300, xmax:950 }, 1000, 1000)
  */
-export function normalizedToPixel(box, imgWidth, imgHeight) {
+export function normalizedToPixel(rawBox, imgWidth, imgHeight) {
+  const box = normalizeBox(rawBox);
   return {
     x: Math.round((box.xmin / 1000) * imgWidth),
     y: Math.round((box.ymin / 1000) * imgHeight),
