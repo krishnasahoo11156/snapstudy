@@ -96,7 +96,6 @@ export default function StudyCanvas() {
         const records = await getPhotoRecords(uid);
         if (records && records.length > 0) {
           setFolders((prev) => {
-<<<<<<< HEAD
             const existingIds = new Set(prev.map((f) => f.id));
             const newFolders = [...prev];
 
@@ -126,15 +125,6 @@ export default function StudyCanvas() {
 
             localStorage.setItem(storageKey, JSON.stringify(newFolders));
             return newFolders;
-=======
-            const updated = mergeScannedNotesWithFolders(prev, records);
-            try {
-              localStorage.setItem(storageKey, JSON.stringify(updated));
-            } catch (e) {
-              console.warn("Failed to persist updated folders:", e);
-            }
-            return updated;
->>>>>>> 809d3a31fa141ceb06694ab25a752a0b5a4c4d4b
           });
         }
       } catch (err) {
