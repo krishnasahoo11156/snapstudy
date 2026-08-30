@@ -48,17 +48,28 @@ router.post("/", async (req, res) => {
       ? cropImageBase64.replace(/^data:image\/\w+;base64,/, "").trim()
       : null;
 
-    // If no crop provided, but we have original image + bounding box, crop on the fly!
+    // If no crop provided, check if bounding box is reliable
     if (!finalCropBase64 && originalImageBase64) {
-      const boxToCrop = box_2d || regionContext.box_2d;
-      if (boxToCrop) {
+      const rawBox = box_2d || regionContext.box_2d;
+      const boxToCrop = rawBox ? normalizeBox(rawBox) : null;
+      const isReliable =
+        boxToCrop &&
+        boxToCrop.xmax - boxToCrop.xmin >= 10 &&
+        boxToCrop.ymax - boxToCrop.ymin >= 10 &&
+        boxToCrop.xmin >= 0 &&
+        boxToCrop.ymin >= 0 &&
+        boxToCrop.xmax <= 1000 &&
+        boxToCrop.ymax <= 1000;
+
+      if (isReliable) {
         try {
           finalCropBase64 = await cropBase64Image(originalImageBase64, boxToCrop);
         } catch (cropErr) {
-          console.warn("[remediate] Crop generation failed, falling back to full image:", cropErr);
+          console.warn("[remediate] Crop unreliable, using full-page fallback:", cropErr);
           finalCropBase64 = originalImageBase64.replace(/^data:image\/\w+;base64,/, "").trim();
         }
       } else {
+        console.warn("[remediate] Crop unreliable, using full-page fallback");
         finalCropBase64 = originalImageBase64.replace(/^data:image\/\w+;base64,/, "").trim();
       }
     }
