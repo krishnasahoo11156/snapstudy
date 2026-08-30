@@ -1,24 +1,17 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+// ── Centralized Model Configuration ─────────────────────────────────────────
+export const GEMINI_PRIMARY_MODEL =
+  process.env.GEMINI_PRIMARY_MODEL ||
+  process.env.MODEL_BATCH ||
+  "gemini-3.5-flash";
+
+export const GEMINI_LITE_MODEL =
+  process.env.GEMINI_LITE_MODEL ||
+  process.env.MODEL_LIVE ||
+  "gemini-3.5-flash-lite";
+
 const genAIInstances = new Map();
-
-const SUPPORTED_MODELS = new Set([
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
-  "gemini-1.5-pro",
-  "gemini-2.0-flash-lite-preview-02-05",
-]);
-
-/**
- * Sanitize and validate model names, safely mapping custom or placeholder strings to fast supported models.
- */
-function resolveModelName(rawModel) {
-  if (rawModel && SUPPORTED_MODELS.has(rawModel)) {
-    return rawModel;
-  }
-  // If env has placeholder like gemini-3.5-flash or gemini-3.5-flash-lite, map to gemini-2.0-flash
-  return "gemini-2.0-flash";
-}
 
 /**
  * Get all available configured Gemini API keys across all endpoints.
@@ -35,7 +28,7 @@ export function getAllApiKeys() {
 
 /**
  * Get GoogleGenerativeAI instance for a specific call type or key.
- * @param {"detect"|"generate"|"remediate"|"default"} [callType="default"]
+ * @param {"detect"|"generate"|"remediate"|"ingest"|"default"} [callType="default"]
  * @param {string|null} [explicitKey=null]
  * @returns {GoogleGenerativeAI}
  */
@@ -73,16 +66,17 @@ export function getGenAI(callType = "default", explicitKey = null) {
 /**
  * Get a configured Gemini model instance with dedicated API key per call.
  *
- * @param {"batch"|"live"} tier
+ * @param {"primary"|"lite"|"batch"|"live"} [tier="primary"]
  * @param {string|null} [overrideModel=null]
- * @param {"detect"|"generate"|"remediate"|"default"} [callType="default"]
+ * @param {"detect"|"generate"|"remediate"|"ingest"|"default"} [callType="default"]
  * @param {string|null} [explicitKey=null]
  * @returns {import("@google/generative-ai").GenerativeModel}
  */
-export function getModel(tier, overrideModel = null, callType = "default", explicitKey = null) {
+export function getModel(tier = "primary", overrideModel = null, callType = "default", explicitKey = null) {
   const genAI = getGenAI(callType, explicitKey);
-  const envModel = tier === "batch" ? process.env.MODEL_BATCH : process.env.MODEL_LIVE;
-  const modelName = resolveModelName(overrideModel || envModel);
+  const isLite = tier === "lite" || tier === "live";
+  const defaultModel = isLite ? GEMINI_LITE_MODEL : GEMINI_PRIMARY_MODEL;
+  const modelName = overrideModel || defaultModel;
 
   return genAI.getGenerativeModel({
     model: modelName,
@@ -111,28 +105,38 @@ export function parseGeminiJson(text) {
 
 /**
  * Call Gemini with multi-key pooling and automatic model failover.
- * Dispatches across all available keys (DETECT, GENERATE, REMEDIATE, MAIN) for maximum throughput.
+ * Uses gemini-3.5-flash for primary tasks (ingest, detect, generate)
+ * and gemini-3.5-flash-lite for lightweight live tasks (remediation).
  *
  * @param {any[]} promptParts
- * @param {"batch"|"live"} tier
- * @param {"detect"|"generate"|"remediate"|"default"} [callType="default"]
+ * @param {"primary"|"lite"|"batch"|"live"} [tier="primary"]
+ * @param {"detect"|"generate"|"remediate"|"ingest"|"default"} [callType="default"]
  * @returns {Promise<string>}
  */
-export async function generateWithModelFallback(promptParts, tier = "batch", callType = "default") {
+export async function generateWithModelFallback(promptParts, tier = "primary", callType = "default") {
+  const isLite = tier === "lite" || tier === "live";
+  const primaryModel = isLite ? GEMINI_LITE_MODEL : GEMINI_PRIMARY_MODEL;
+  const backupModel = isLite ? GEMINI_PRIMARY_MODEL : GEMINI_LITE_MODEL;
+  const models = [primaryModel, backupModel];
+
   const keys = getAllApiKeys();
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  const keyList = keys.length > 0 ? keys : [null];
 
   let lastError;
 
-  // Try across available keys and models
-  for (const key of keys.length > 0 ? keys : [null]) {
-    for (const modelName of models) {
+  for (const modelName of models) {
+    for (const key of keyList) {
       try {
+        console.log(`[Gemini Request] Endpoint: ${callType} | Selected Model: ${modelName}`);
         const model = getModel(tier, modelName, callType, key);
         const result = await model.generateContent(promptParts);
         return result.response.text();
       } catch (err) {
-        console.warn(`[gemini][${callType}] Model ${modelName} with key ${key ? key.slice(-4) : "default"} failed (${err?.message || err}). Trying next available...`);
+        console.error(
+          `[Gemini Error] Endpoint: ${callType} | Selected Model: ${modelName} | Status: ${
+            err?.status || err?.statusCode || "Error"
+          } | Message: ${err?.message || err}`
+        );
         lastError = err;
       }
     }
