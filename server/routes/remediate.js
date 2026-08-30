@@ -44,12 +44,19 @@ router.post("/", async (req, res) => {
       });
     }
 
-    let finalCropBase64 = cropImageBase64
-      ? cropImageBase64.replace(/^data:image\/\w+;base64,/, "").trim()
-      : null;
+    let finalCropBase64 =
+      cropImageBase64 && typeof cropImageBase64 === "string" && !cropImageBase64.startsWith("http")
+        ? cropImageBase64.replace(/^data:image\/\w+;base64,/, "").trim()
+        : null;
 
-    // If no crop provided, check if bounding box is reliable
-    if (!finalCropBase64 && originalImageBase64) {
+    const isBase64 =
+      originalImageBase64 &&
+      typeof originalImageBase64 === "string" &&
+      originalImageBase64.length > 100 &&
+      !originalImageBase64.startsWith("http");
+
+    // If no crop provided and we have real base64 data, crop bounding box
+    if (!finalCropBase64 && isBase64) {
       const rawBox = box_2d || regionContext.box_2d;
       const boxToCrop = rawBox ? normalizeBox(rawBox) : null;
       const isReliable =
@@ -65,12 +72,8 @@ router.post("/", async (req, res) => {
         try {
           finalCropBase64 = await cropBase64Image(originalImageBase64, boxToCrop);
         } catch (cropErr) {
-          console.warn("[remediate] Crop unreliable, using full-page fallback:", cropErr);
-          finalCropBase64 = originalImageBase64.replace(/^data:image\/\w+;base64,/, "").trim();
+          console.warn("[remediate] Crop failed, proceeding with prompt:", cropErr?.message || cropErr);
         }
-      } else {
-        console.warn("[remediate] Crop unreliable, using full-page fallback");
-        finalCropBase64 = originalImageBase64.replace(/^data:image\/\w+;base64,/, "").trim();
       }
     }
 

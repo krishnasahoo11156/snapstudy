@@ -14,9 +14,13 @@ const CARD_TYPE_BADGES = {
   timeline: { label: "Timeline Process", bg: "bg-orange-50 text-orange-700 border-orange-200" },
 };
 
-export default function CaptureScreen() {
+export default function CaptureScreen({ initialMode = "auto" }) {
   const [user] = auth ? useAuthState(auth) : [null];
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  // Tab mode: 'image' | 'file'
+  const [uploadMode, setUploadMode] = useState(() => (initialMode === "file" ? "file" : "image"));
 
   // Flow states: 'idle' | 'processing' | 'done' | 'error'
   const [flowState, setFlowState] = useState("idle");
@@ -27,7 +31,11 @@ export default function CaptureScreen() {
   // Data states
   const [previewUrl, setPreviewUrl] = useState(null);
   const [rawBase64, setRawBase64] = useState("");
+  const [rawTextContent, setRawTextContent] = useState("");
+  const [fileMimeType, setFileMimeType] = useState("image/jpeg");
   const [fileName, setFileName] = useState("");
+  const [fileSize, setFileSize] = useState("");
+  const [isDocument, setIsDocument] = useState(false);
   const [detectedRegions, setDetectedRegions] = useState([]);
   const [generatedCards, setGeneratedCards] = useState([]);
   const [selectedRegionId, setSelectedRegionId] = useState(null);
@@ -61,75 +69,125 @@ export default function CaptureScreen() {
     );
   }
 
-  const processImageFile = async (file) => {
+  const formatBytes = (bytes) => {
+    if (!bytes) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  };
+
+  const processAnyFile = async (file) => {
     if (!file) return;
 
     try {
       setFlowState("processing");
       setErrorMessage("");
       setFileName(file.name);
+      setFileSize(formatBytes(file.size));
       setSelectedRegionId(null);
       setUploadProgress(0);
 
-      // 1. Compress Image
-      setCurrentStep("Compressing image…");
-      const compressed = await compressImage(file, 1280, 1280, 0.78);
-      setPreviewUrl(compressed.dataUrl);
-      const cleanBase64 = compressed.dataUrl.replace(/^data:image\/\w+;base64,/, "");
-      setRawBase64(cleanBase64);
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      const isText = file.type.startsWith("text/") || file.name.toLowerCase().endsWith(".txt") || file.name.toLowerCase().endsWith(".md");
+      const isImg = file.type.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif)$/i.test(file.name);
 
-      // 2. Parallel Storage Upload + Fast Single-Pass AI Processing
+      setIsDocument(isPdf || isText);
+
       const uid = user?.uid || "guest_user";
-      setCurrentStep("Analyzing notes & generating flashcards with Gemini…");
+      let ingestPayload;
+      let recordPreviewUrl = null;
 
-      const storagePromise = uploadPhotoToStorage(
-        compressed.blob,
-        uid,
-        (progress) => setUploadProgress(progress),
-        compressed.dataUrl
+      if (isText) {
+        // ── Text / Markdown file reading ─────────────────────────────────────
+        setCurrentStep("Reading document contents…");
+        const text = await file.text();
+        setRawTextContent(text);
+        setFileMimeType("text/plain");
+        ingestPayload = { textContent: text, fileName: file.name, mimeType: "text/plain" };
+      } else if (isPdf) {
+        // ── PDF Document Base64 ──────────────────────────────────────────────
+        setCurrentStep("Preparing PDF for Gemini analysis…");
+        setFileMimeType("application/pdf");
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.replace(/^data:[^;]+;base64,/, ""));
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        setRawBase64(base64);
+        ingestPayload = { fileData: base64, mimeType: "application/pdf", fileName: file.name };
+      } else {
+        // ── Image compression ────────────────────────────────────────────────
+        setCurrentStep("Compressing image…");
+        const compressed = await compressImage(file, 1280, 1280, 0.78);
+        setPreviewUrl(compressed.dataUrl);
+        recordPreviewUrl = compressed.dataUrl;
+        const cleanBase64 = compressed.dataUrl.replace(/^data:image\/\w+;base64,/, "");
+        setRawBase64(cleanBase64);
+        setFileMimeType("image/jpeg");
+        ingestPayload = { image: cleanBase64, fileName: file.name };
+
+        // Background cloud storage upload for images
+        uploadPhotoToStorage(
+          compressed.blob,
+          uid,
+          (progress) => setUploadProgress(progress),
+          compressed.dataUrl
+        ).then((storageRes) => {
+          if (storageRes.downloadUrl) recordPreviewUrl = storageRes.downloadUrl;
+        }).catch((e) => console.warn("Background storage upload notice:", e));
+      }
+
+      // Run fast AI note ingestion & flashcard generation
+      setCurrentStep(
+        isPdf
+          ? "Analyzing PDF & extracting key concepts with Gemini…"
+          : isText
+          ? "Generating flashcards from document notes with Gemini…"
+          : "Analyzing notes & generating flashcards with Gemini…"
       );
 
-      const aiPromise = api.ingest(cleanBase64);
-
-      // Await AI generation and storage upload in parallel
-      const [storageRes, ingestRes] = await Promise.all([storagePromise, aiPromise]);
+      const ingestRes = await api.ingest(ingestPayload);
 
       if (!ingestRes.success || !ingestRes.data?.regions || !ingestRes.data?.cards) {
-        throw new Error(ingestRes.error || "Failed to process note image with AI.");
+        throw new Error(ingestRes.error || "Failed to process note file with AI.");
       }
 
       const { regions, cards } = ingestRes.data;
       setDetectedRegions(regions);
       setGeneratedCards(cards);
 
-      // 3. Persist to Firestore / Local Cache
-      setCurrentStep("Saving photo and cards to your study deck…");
-      const photoId = `photo_${Date.now()}`;
+      // Persist to Firestore / Local Cache
+      setCurrentStep("Saving flashcards to your study deck…");
+      const photoId = `note_${Date.now()}`;
       setCurrentPhotoId(photoId);
+
       const record = {
         id: photoId,
         uid,
-        originalPhotoUrl: storageRes.downloadUrl || compressed.dataUrl,
-        originalPhotoPath: storageRes.storagePath,
+        fileName: file.name,
+        isDocument: isPdf || isText,
+        fileType: isPdf ? "pdf" : isText ? "text" : "image",
+        originalPhotoUrl: recordPreviewUrl,
         createdAt: new Date(),
         regions,
         cards,
       };
 
-      // Save locally and sync in background without blocking UI render
       savePhotoRecord(record).catch((e) => console.warn("Background save error:", e));
 
       setFlowState("done");
       setCurrentStep("");
     } catch (err) {
-      console.error("[Capture Pipeline Error]", err);
+      console.error("[File Ingestion Pipeline Error]", err);
       setFlowState("error");
       setErrorMessage(err instanceof Error ? err.message : String(err));
     }
   };
 
   const handleRetryAnalysis = async () => {
-    if (!rawBase64) {
+    if (!rawBase64 && !rawTextContent) {
       handleReset();
       return;
     }
@@ -138,22 +196,27 @@ export default function CaptureScreen() {
       setErrorMessage("");
       setCurrentStep("Connecting to Gemini AI server…");
 
-      const ingestRes = await api.ingest(rawBase64);
+      const payload = rawTextContent
+        ? { textContent: rawTextContent, fileName }
+        : { fileData: rawBase64, mimeType: fileMimeType, fileName };
+
+      const ingestRes = await api.ingest(payload);
 
       if (!ingestRes.success || !ingestRes.data?.regions || !ingestRes.data?.cards) {
-        throw new Error(ingestRes.error || "Failed to process note image with AI.");
+        throw new Error(ingestRes.error || "Failed to process note file with AI.");
       }
 
       const { regions, cards } = ingestRes.data;
       setDetectedRegions(regions);
       setGeneratedCards(cards);
 
-      setCurrentStep("Saving photo and cards to your study deck…");
-      const photoId = `photo_${Date.now()}`;
+      const photoId = `note_${Date.now()}`;
       setCurrentPhotoId(photoId);
       const record = {
         id: photoId,
         uid: user?.uid || "guest_user",
+        fileName,
+        isDocument,
         originalPhotoUrl: previewUrl,
         createdAt: new Date(),
         regions,
@@ -172,20 +235,23 @@ export default function CaptureScreen() {
 
   const handleFileInput = (e) => {
     const file = e.target.files?.[0];
-    if (file) processImageFile(file);
+    if (file) processAnyFile(file);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
-    if (file) processImageFile(file);
+    if (file) processAnyFile(file);
   };
 
   const handleReset = () => {
     setFlowState("idle");
     setPreviewUrl(null);
     setRawBase64("");
+    setRawTextContent("");
     setFileName("");
+    setFileSize("");
+    setIsDocument(false);
     setDetectedRegions([]);
     setGeneratedCards([]);
     setSelectedRegionId(null);
@@ -194,6 +260,7 @@ export default function CaptureScreen() {
     setErrorMessage("");
     setUploadProgress(0);
     if (inputRef.current) inputRef.current.value = "";
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleDeleteCurrentNote = async () => {
@@ -217,57 +284,111 @@ export default function CaptureScreen() {
               A
             </span>
             <h1 className="text-2xl font-bold tracking-tight text-ink">
-              AI Note Ingestion & Card Engine
+              AI Note & Document Ingestion Engine
             </h1>
           </div>
           <p className="text-xs md:text-sm text-ink-secondary mt-1">
-            Photograph notes → Spatial region detection → Type-aware flashcards with coordinate linkage
+            Upload PDF slides, study guides, handwritten notes or text docs → Type-aware flashcards & grounded study cards
           </p>
         </div>
+
+        {/* Mode switcher tabs */}
+        {flowState === "idle" && (
+          <div className="flex items-center gap-1.5 p-1 bg-paper-warm rounded-2xl border border-paper-border">
+            <button
+              onClick={() => setUploadMode("image")}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                uploadMode === "image"
+                  ? "bg-white text-ink shadow-sm border border-paper-border"
+                  : "text-ink-secondary hover:text-ink"
+              }`}
+            >
+              <span>📸</span>
+              <span>Photo / Image</span>
+            </button>
+            <button
+              onClick={() => setUploadMode("file")}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                uploadMode === "file"
+                  ? "bg-white text-ink shadow-sm border border-paper-border"
+                  : "text-ink-secondary hover:text-ink"
+              }`}
+            >
+              <span>📄</span>
+              <span>PDF / File</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main Content Area */}
       {flowState === "idle" && (
-        <div className="flex flex-col items-center justify-center py-12">
+        <div className="flex flex-col items-center justify-center py-8">
           <div
             id="capture-upload-zone"
             onDragOver={(e) => e.preventDefault()}
             onDrop={handleDrop}
-            onClick={() => inputRef.current?.click()}
-            className="group relative flex w-full max-w-xl cursor-pointer flex-col items-center justify-center gap-5 rounded-3xl border-2 border-dashed border-paper-border bg-white p-12 text-center transition-all hover:border-accent hover:bg-accent/5 shadow-card"
+            onClick={() => (uploadMode === "file" ? fileInputRef.current?.click() : inputRef.current?.click())}
+            className="group relative flex w-full max-w-xl cursor-pointer flex-col items-center justify-center gap-5 rounded-3xl border-2 border-dashed border-paper-border bg-white p-10 text-center transition-all hover:border-accent hover:bg-accent/5 shadow-card"
           >
             <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-accent/10 border border-accent/20 text-accent shadow-sm group-hover:scale-110 transition-transform">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
-              </svg>
+              {uploadMode === "file" ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                </svg>
+              )}
             </div>
 
             <div>
-              <p className="text-lg font-bold text-ink">Upload or Capture Notebook Photo</p>
+              <p className="text-lg font-bold text-ink">
+                {uploadMode === "file" ? "Upload Study Document or PDF" : "Upload or Capture Notebook Photo"}
+              </p>
               <p className="mt-1.5 text-xs text-ink-secondary">
-                Drag & drop note image here or tap to use camera (JPEG, PNG · Max 10MB)
+                {uploadMode === "file"
+                  ? "Drag & drop PDF slides, study notes, or text files (.pdf, .txt, .md, .docx · Max 25MB)"
+                  : "Drag & drop note image here or tap to use camera (JPEG, PNG · Max 10MB)"}
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2 justify-center">
               <span className="rounded-full bg-paper-warm px-2.5 py-1 text-[11px] font-medium text-ink-secondary border border-paper-border">
-                📐 Math Equations
+                📑 PDF Documents & Slides
               </span>
               <span className="rounded-full bg-paper-warm px-2.5 py-1 text-[11px] font-medium text-ink-secondary border border-paper-border">
-                📊 Scientific Diagrams
+                📐 Math & Science Diagrams
               </span>
               <span className="rounded-full bg-paper-warm px-2.5 py-1 text-[11px] font-medium text-ink-secondary border border-paper-border">
-                📝 Definitions & Lists
+                📝 Text Summaries & Markdown
               </span>
             </div>
 
+            <button
+              type="button"
+              className="mt-1 rounded-xl bg-ink px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-ink/80 transition-all"
+            >
+              Browse {uploadMode === "file" ? "Files" : "Photos"}
+            </button>
+
+            {/* Hidden file inputs */}
             <input
               ref={inputRef}
-              id="capture-file-input"
+              id="capture-image-input"
               type="file"
               accept="image/*"
               capture="environment"
+              onChange={handleFileInput}
+              className="sr-only"
+            />
+            <input
+              ref={fileInputRef}
+              id="capture-file-input"
+              type="file"
+              accept=".pdf,.txt,.md,.doc,.docx,application/pdf,text/plain,image/*"
               onChange={handleFileInput}
               className="sr-only"
             />
@@ -286,23 +407,25 @@ export default function CaptureScreen() {
             </div>
           </div>
 
-          <h3 className="text-xl font-bold text-ink">Processing Study Notes</h3>
+          <h3 className="text-xl font-bold text-ink">
+            {isDocument ? "Processing Study Document" : "Processing Study Notes"}
+          </h3>
           <p className="mt-2 text-sm font-medium text-accent animate-pulse">{currentStep}</p>
 
           {/* Stepper Progress Breakdown */}
           <div className="mt-8 w-full space-y-3 rounded-2xl border border-paper-border bg-white p-5 text-left text-xs shadow-card">
             <div className="flex items-center justify-between text-ink pb-2 border-b border-paper-border">
               <span className="flex items-center gap-2 font-medium">
-                <span className={`h-2.5 w-2.5 rounded-full ${uploadProgress === 100 ? "bg-emerald-500" : "bg-accent animate-pulse"}`} />
-                1. Storage & Note Cloud Sync
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                1. File Read & Verification ({fileName || "Document"})
               </span>
-              <span className="font-mono text-ink-secondary">{uploadProgress}%</span>
+              <span className="font-mono text-ink-secondary">{fileSize || "Ready"}</span>
             </div>
 
             <div className="flex items-center justify-between text-ink pt-1">
               <span className="flex items-center gap-2 font-medium">
                 <span className="h-2.5 w-2.5 rounded-full bg-accent animate-ping" />
-                2. Gemini AI Flashcard Generation
+                2. Gemini AI Flashcard & Region Analysis
               </span>
               <span className="text-[11px] text-accent font-semibold">Running</span>
             </div>
@@ -331,7 +454,7 @@ export default function CaptureScreen() {
               onClick={handleReset}
               className="rounded-xl border border-paper-border bg-white px-4 py-2 text-xs font-semibold text-ink hover:bg-paper-warm transition shadow-sm"
             >
-              Choose Another Image
+              Choose Another File
             </button>
             <button
               onClick={() => {
@@ -358,10 +481,11 @@ export default function CaptureScreen() {
               </div>
               <div>
                 <p className="text-sm font-bold text-ink">
-                  {detectedRegions.length} Regions & {generatedCards.length} Flashcards Generated
+                  {detectedRegions.length} Concept Sections & {generatedCards.length} Flashcards Generated
                 </p>
                 <p className="text-xs text-ink-secondary">
-                  Linked by spatial coordinates. Click regions to inspect linked cards.
+                  Source: <span className="font-semibold text-ink">{fileName || "Study Material"}</span>
+                  {fileSize && ` · ${fileSize}`}
                 </p>
               </div>
             </div>
@@ -379,7 +503,7 @@ export default function CaptureScreen() {
                 onClick={handleReset}
                 className="rounded-xl border border-paper-border bg-white px-3.5 py-2 text-xs font-medium text-ink hover:bg-paper-warm transition shadow-sm"
               >
-                Scan Another
+                Upload Another
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
@@ -405,9 +529,9 @@ export default function CaptureScreen() {
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-bold text-ink">Delete This Scanned Note?</h3>
+                  <h3 className="text-lg font-bold text-ink">Delete This Study Item?</h3>
                   <p className="text-xs text-ink-secondary mt-1">
-                    This will discard this note photo and delete all {generatedCards.length} generated flashcards.
+                    This will discard this document and delete all {generatedCards.length} generated flashcards.
                   </p>
                 </div>
 
@@ -424,34 +548,58 @@ export default function CaptureScreen() {
                     onClick={handleDeleteCurrentNote}
                     className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-red-700 transition"
                   >
-                    Delete Note
+                    Delete Item
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Grid Layout: Region Overlay on Left, Flashcards on Right */}
+          {/* Grid Layout: Document / Region Overview on Left, Flashcards on Right */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Left: Region Overlay */}
+            {/* Left: Region Overlay or Document Preview */}
             <div className="lg:col-span-6 xl:col-span-7 space-y-3">
               <div className="flex items-center justify-between px-1">
                 <h3 className="text-sm font-bold text-ink uppercase tracking-wider">
-                  Spatial Region Map
+                  {isDocument ? "Document Concept Breakdown" : "Spatial Region Map"}
                 </h3>
                 <span className="text-[11px] text-ink-tertiary">
-                  Hover or tap any box to highlight
+                  Click any section to filter linked cards
                 </span>
               </div>
 
-              <RegionOverlay
-                src={previewUrl}
-                regions={detectedRegions}
-                selectedRegionId={selectedRegionId}
-                onSelectRegion={(region) => setSelectedRegionId(region.id)}
-              />
+              {previewUrl && !isDocument ? (
+                <RegionOverlay
+                  src={previewUrl}
+                  regions={detectedRegions}
+                  selectedRegionId={selectedRegionId}
+                  onSelectRegion={(region) => setSelectedRegionId(region.id)}
+                />
+              ) : (
+                <div className="rounded-3xl border border-paper-border bg-white p-6 shadow-card space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/10 border border-accent/20 text-2xl">
+                      {fileName.toLowerCase().endsWith(".pdf") ? "📑" : "📝"}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-base font-bold text-ink truncate">{fileName || "Study Document"}</h4>
+                      <p className="text-xs text-ink-secondary mt-0.5">
+                        {detectedRegions.length} sections identified · {generatedCards.length} flashcards extracted
+                      </p>
+                    </div>
+                  </div>
 
-              {/* Region chips */}
+                  {rawTextContent && (
+                    <div className="rounded-2xl bg-paper-warm p-4 border border-paper-border max-h-48 overflow-y-auto text-xs text-ink-secondary font-mono leading-relaxed">
+                      <p className="font-bold text-ink mb-1 font-sans">Document Excerpt:</p>
+                      {rawTextContent.slice(0, 500)}
+                      {rawTextContent.length > 500 && "…"}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Region / Topic chips */}
               <div className="flex flex-wrap gap-2 pt-2">
                 {detectedRegions.map((region) => {
                   const colors = REGION_COLORS[region.region_type] || REGION_COLORS.prose;
@@ -547,7 +695,7 @@ export default function CaptureScreen() {
                               </span>
                               <ol className="list-decimal list-inside space-y-0.5 text-[11px] text-ink-secondary">
                                 {card.steps.map((step, idx) => (
-                                  <li key={idx}>{step}</li>
+                                   <li key={idx}>{step}</li>
                                 ))}
                               </ol>
                             </div>

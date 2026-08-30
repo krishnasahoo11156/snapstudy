@@ -7,17 +7,24 @@ const router = express.Router();
 
 /**
  * POST /api/ingest
- * Body: { image: string } — base64 JPEG
+ * Body: {
+ *   image?: string,
+ *   fileData?: string,
+ *   mimeType?: string,
+ *   textContent?: string,
+ *   fileName?: string
+ * }
  * Returns: { success: true, data: { regions: Region[], cards: Flashcard[] } }
- * Single AI pass — 2-3x faster than sequential calls.
+ * Handles photos, PDF study guides, lecture slides, and text notes.
  */
 router.post("/", async (req, res) => {
   const startTime = Date.now();
   try {
-    const { image } = req.body;
+    const { image, fileData, mimeType = "image/jpeg", textContent, fileName } = req.body;
 
-    if (!image) {
-      return res.status(400).json({ success: false, error: "Missing image field in request body" });
+    const payload = fileData || image;
+    if (!payload && !textContent) {
+      return res.status(400).json({ success: false, error: "Missing image, fileData, or textContent in request body" });
     }
 
     if (!process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY_DETECT) {
@@ -28,13 +35,25 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const cleanBase64 = image.replace(/^data:image\/\w+;base64,/, "").trim();
-    console.log(`[/api/ingest] Processing image payload (${Math.round(cleanBase64.length / 1024)} KB base64)...`);
+    const contentParts = [unifiedIngestionPrompt];
 
-    const text = await generateWithModelFallback([
-      unifiedIngestionPrompt,
-      { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } },
-    ], "batch", "ingest");
+    if (textContent) {
+      console.log(`[/api/ingest] Processing text document "${fileName || "notes"}" (${textContent.length} chars)...`);
+      contentParts.push(`\n\nStudy Material Content from "${fileName || "Notes Document"}":\n${textContent}`);
+    } else if (payload) {
+      const cleanBase64 = payload.replace(/^data:[^;]+;base64,/, "").trim();
+      const detectedMime = mimeType || (payload.startsWith("data:application/pdf") ? "application/pdf" : "image/jpeg");
+      console.log(`[/api/ingest] Processing file payload (${Math.round(cleanBase64.length / 1024)} KB, type: ${detectedMime})...`);
+
+      contentParts.push({
+        inlineData: {
+          data: cleanBase64,
+          mimeType: detectedMime,
+        },
+      });
+    }
+
+    const text = await generateWithModelFallback(contentParts, "primary", "ingest");
     const parsed = parseGeminiJson(text);
 
     const rawRegions = Array.isArray(parsed.regions) ? parsed.regions : [];

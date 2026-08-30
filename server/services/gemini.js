@@ -15,15 +15,27 @@ const genAIInstances = new Map();
 
 /**
  * Get all available configured Gemini API keys across all endpoints.
+ * Supports dedicated keys, numbered keys (KEY_4, KEY_5, KEY_6, etc.), and comma-separated GEMINI_API_KEYS.
  * @returns {string[]}
  */
 export function getAllApiKeys() {
-  return [
+  const keys = [
     process.env.GEMINI_API_KEY_DETECT,
     process.env.GEMINI_API_KEY_GENERATE,
     process.env.GEMINI_API_KEY_REMEDIATE,
     process.env.GEMINI_API_KEY,
-  ].filter((k) => Boolean(k && typeof k === "string" && k.trim().length > 10));
+    process.env.GEMINI_API_KEY_4,
+    process.env.GEMINI_API_KEY_5,
+    process.env.GEMINI_API_KEY_6,
+    process.env.GEMINI_API_KEY_EXTRA,
+  ];
+
+  if (process.env.GEMINI_API_KEYS) {
+    const list = process.env.GEMINI_API_KEYS.split(",").map((k) => k.trim());
+    keys.push(...list);
+  }
+
+  return [...new Set(keys.filter((k) => Boolean(k && typeof k === "string" && k.trim().length > 10)))];
 }
 
 /**
@@ -127,15 +139,22 @@ export async function generateWithModelFallback(promptParts, tier = "primary", c
   for (const modelName of models) {
     for (const key of keyList) {
       try {
-        console.log(`[Gemini Request] Endpoint: ${callType} | Selected Model: ${modelName}`);
+        console.log(`[Gemini Request] Endpoint: ${callType} | Selected Model: ${modelName} | Key: ${key ? `***${key.slice(-4)}` : "default"}`);
         const model = getModel(tier, modelName, callType, key);
-        const result = await model.generateContent(promptParts);
+
+        // 8-second safety timeout per key attempt
+        const resultPromise = model.generateContent(promptParts);
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`Gemini request timeout on key ${key ? `***${key.slice(-4)}` : "default"}`)), 8000)
+        );
+
+        const result = await Promise.race([resultPromise, timeoutPromise]);
         return result.response.text();
       } catch (err) {
         console.error(
-          `[Gemini Error] Endpoint: ${callType} | Selected Model: ${modelName} | Status: ${
-            err?.status || err?.statusCode || "Error"
-          } | Message: ${err?.message || err}`
+          `[Gemini Error] Endpoint: ${callType} | Selected Model: ${modelName} | Key: ${
+            key ? `***${key.slice(-4)}` : "default"
+          } | Status: ${err?.status || err?.statusCode || "Error"} | Message: ${err?.message || err}`
         );
         lastError = err;
       }

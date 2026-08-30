@@ -38,8 +38,21 @@ export default function StudyCanvas() {
   const [newFolderIcon, setNewFolderIcon] = useState("📁");
   const canvasRef = useRef(null);
 
-  // Sync with Firestore photo records (user notes scanned via Capture)
+  // Reload user folders & sync with Firestore when user logs in or switches account
   useEffect(() => {
+    // 1. Initial reload from user's localStorage
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        setFolders(JSON.parse(saved));
+      } else {
+        setFolders(DEFAULT_STARTER_FOLDERS);
+      }
+    } catch (e) {
+      console.warn("Failed to load user folders from localStorage:", e);
+    }
+
+    // 2. Sync with cloud Firestore photo records
     const loadUserScannedNotes = async () => {
       try {
         const records = await getPhotoRecords(uid);
@@ -81,7 +94,7 @@ export default function StudyCanvas() {
     };
 
     loadUserScannedNotes();
-  }, [uid]);
+  }, [uid, storageKey]);
 
   const saveAndSetFolders = (updater) => {
     setFolders((prev) => {
