@@ -54,42 +54,38 @@ export default function CaptureScreen() {
       const cleanBase64 = compressed.dataUrl.replace(/^data:image\/\w+;base64,/, "");
       setRawBase64(cleanBase64);
 
-      // 2. Upload to Free Storage
-      setCurrentStep("Processing & saving note image…");
+      // 2. Parallel Storage Upload + Fast Single-Pass AI Processing
       const uid = user?.uid || "guest_user";
-      const { downloadUrl, storagePath } = await uploadPhotoToStorage(
+      setCurrentStep("Analyzing notes & generating flashcards with Gemini…");
+
+      const storagePromise = uploadPhotoToStorage(
         compressed.blob,
         uid,
         (progress) => setUploadProgress(progress),
         compressed.dataUrl
       );
 
-      // 3. Gemini Call 1: Detect Regions
-      setCurrentStep("Analyzing notebook regions with Gemini AI…");
-      const detectRes = await api.detectRegions(cleanBase64);
-      if (!detectRes.success || !detectRes.data?.regions) {
-        throw new Error(detectRes.error || "Failed to detect note regions.");
-      }
-      const regions = detectRes.data.regions;
-      setDetectedRegions(regions);
+      const aiPromise = api.ingest(cleanBase64);
 
-      // 4. Gemini Call 2: Generate Type-Aware Flashcards
-      setCurrentStep("Generating type-aware flashcards…");
-      const cardsRes = await api.generateCards(regions, cleanBase64);
-      if (!cardsRes.success || !cardsRes.data?.cards) {
-        throw new Error(cardsRes.error || "Failed to generate flashcards.");
+      // Await AI generation and storage upload in parallel
+      const [storageRes, ingestRes] = await Promise.all([storagePromise, aiPromise]);
+
+      if (!ingestRes.success || !ingestRes.data?.regions || !ingestRes.data?.cards) {
+        throw new Error(ingestRes.error || "Failed to process note image with AI.");
       }
-      const cards = cardsRes.data.cards;
+
+      const { regions, cards } = ingestRes.data;
+      setDetectedRegions(regions);
       setGeneratedCards(cards);
 
-      // 5. Persist to Firestore / Local Cache
+      // 3. Persist to Firestore / Local Cache
       setCurrentStep("Saving photo and cards to your study deck…");
       const photoId = `photo_${Date.now()}`;
       const record = {
         id: photoId,
         uid,
-        originalPhotoUrl: downloadUrl || compressed.dataUrl,
-        originalPhotoPath: storagePath,
+        originalPhotoUrl: storageRes.downloadUrl || compressed.dataUrl,
+        originalPhotoPath: storageRes.storagePath,
         createdAt: new Date(),
         regions,
         cards,

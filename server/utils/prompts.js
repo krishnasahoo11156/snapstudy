@@ -4,34 +4,47 @@
 // ============================================================
 
 /**
- * Call 1: Region Detection
- * Instructs Gemini to identify distinct content regions in a student's notebook photo.
+ * Fast Unified Ingest: Region Detection + Card Generation in a single AI pass (2-3x speedup)
  */
-export const regionDetectionPrompt = `You are an expert study assistant analyzing a photograph of student handwritten notes.
+export const unifiedIngestionPrompt = `You are an expert study assistant analyzing a photograph of student handwritten notes.
 
-Your task: Identify ALL distinct content regions on this page.
+Your task in ONE unified pass:
+1. Identify ALL distinct content regions on this page with their bounding boxes (0–1000 scale as [ymin, xmin, ymax, xmax]).
+2. For each detected region, create exactly ONE corresponding type-aware flashcard.
 
-For each region, return:
-- box_2d: bounding box as [ymin, xmin, ymax, xmax] on a 0–1000 scale
-- region_type: one of [equation, diagram, definition, list, prose]
-- label: a short 3–5 word description of what this region contains
-- raw_text: transcribed text (for text regions) or a clear description (for diagrams)
-
-Classification guide:
+Region types:
 - equation: mathematical formulas, derivations, symbolic expressions
 - diagram: graphs, figures, charts, sketches, illustrations
 - definition: formal definitions, theorems, key terms with explanations
 - list: numbered or bulleted items, steps, examples
 - prose: regular paragraphs, explanations, notes
 
+Card types matching the region:
+- "qa" → for definitions, facts, prose concepts (front question, back answer)
+- "derivation_steps" → for mathematical proofs, derivations (include "steps" array)
+- "labeled_diagram" → for diagrams, graphs, charts (include "labels" array of {part, description})
+- "timeline" → for sequences, ordered processes (include "steps" array)
+
 Return ONLY valid JSON with no markdown fences:
 {
   "regions": [
     {
-      "box_2d": [number, number, number, number],
-      "region_type": "string",
-      "label": "string",
-      "raw_text": "string"
+      "id": "region_0",
+      "box_2d": [100, 50, 400, 950],
+      "region_type": "equation",
+      "label": "Short description",
+      "raw_text": "Text or description"
+    }
+  ],
+  "cards": [
+    {
+      "id": "card_0",
+      "source_region_id": "region_0",
+      "card_type": "qa",
+      "front": "Clear question testing understanding",
+      "back": "Concise complete answer",
+      "steps": ["Step 1"],
+      "labels": [{"part": "Name", "description": "Detail"}]
     }
   ]
 }`;

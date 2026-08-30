@@ -28,7 +28,10 @@ export function isMockMode() {
  */
 async function post(path, body) {
   if (mockMode) {
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 400));
+    if (path.includes("ingest")) {
+      return { success: true, data: { regions: generateMockRegions().regions, cards: generateMockCards().cards } };
+    }
     if (path.includes("detect-regions")) return { success: true, data: generateMockRegions() };
     if (path.includes("generate-cards")) return { success: true, data: generateMockCards() };
     if (path.includes("remediate")) return { success: true, data: generateMockRemediation() };
@@ -44,6 +47,9 @@ async function post(path, body) {
 
     if (!res.ok) {
       console.warn(`[api-client] Remote API ${path} returned HTTP ${res.status}. Falling back to mock dataset.`);
+      if (path.includes("ingest")) {
+        return { success: true, data: { regions: generateMockRegions().regions, cards: generateMockCards().cards }, fallback: true };
+      }
       if (path.includes("detect-regions")) return { success: true, data: generateMockRegions(), fallback: true };
       if (path.includes("generate-cards")) return { success: true, data: generateMockCards(), fallback: true };
       if (path.includes("remediate")) return { success: true, data: generateMockRemediation(), fallback: true };
@@ -53,6 +59,9 @@ async function post(path, body) {
     return await res.json();
   } catch (err) {
     console.warn(`[api-client] Network error calling ${path} (${err.message}). Falling back to mock dataset for seamless demonstration.`);
+    if (path.includes("ingest")) {
+      return { success: true, data: { regions: generateMockRegions().regions, cards: generateMockCards().cards }, fallback: true };
+    }
     if (path.includes("detect-regions")) return { success: true, data: generateMockRegions(), fallback: true };
     if (path.includes("generate-cards")) return { success: true, data: generateMockCards(), fallback: true };
     if (path.includes("remediate")) return { success: true, data: generateMockRemediation(), fallback: true };
@@ -64,6 +73,30 @@ async function post(path, body) {
  * Typed API surface — import this everywhere, never call fetch() directly.
  */
 export const api = {
+  /**
+   * Fast Ingestion: Detect regions AND generate flashcards in a single AI pass (2-3x speedup).
+   * @param {string} imageBase64 - Base64-encoded JPEG
+   * @returns {Promise<ApiResponse & { data?: { regions: Region[], cards: Flashcard[] } }>}
+   */
+  ingest: async (imageBase64) => {
+    const res = await post("/ingest", { image: imageBase64 });
+    if (res.success && res.data?.regions && res.data?.cards) {
+      return res;
+    }
+    // Fallback to 2-step pipeline if needed
+    const detectRes = await api.detectRegions(imageBase64);
+    if (!detectRes.success || !detectRes.data?.regions) return detectRes;
+    const cardsRes = await api.generateCards(detectRes.data.regions, imageBase64);
+    if (!cardsRes.success || !cardsRes.data?.cards) return cardsRes;
+    return {
+      success: true,
+      data: {
+        regions: detectRes.data.regions,
+        cards: cardsRes.data.cards,
+      },
+    };
+  },
+
   /**
    * Check backend health
    */

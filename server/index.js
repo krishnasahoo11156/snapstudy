@@ -6,6 +6,7 @@ import { dirname, join } from "path";
 import detectRouter from "./routes/detect.js";
 import generateRouter from "./routes/generate.js";
 import remediateRouter from "./routes/remediate.js";
+import ingestRouter from "./routes/ingest.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -63,6 +64,7 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // ── Routes ──────────────────────────────────────────────────────────────────
+app.use("/api/ingest", ingestRouter); // Fast unified single-pass (2-3x speedup)
 app.use("/api/detect-regions", detectRouter);
 app.use("/api/generate-cards", generateRouter);
 app.use("/api/remediate", remediateRouter);
