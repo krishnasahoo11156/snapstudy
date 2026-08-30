@@ -1,21 +1,41 @@
 import { useState, useRef, useEffect } from "react";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { signOut } from "firebase/auth";
+import { auth } from "../../lib/firebase";
 import { useNav } from "../../context/NavContext";
 
 export default function Header({ showSearch = true }) {
   const { navigate } = useNav();
+  const [user] = auth ? useAuthState(auth) : [null];
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchVal, setSearchVal] = useState("");
   const [notifOpen, setNotifOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const searchRef = useRef(null);
 
-  // Close notif dropdown on outside click
+  // Close panels on outside click
   useEffect(() => {
     const handler = (e) => {
       if (!e.target.closest("#notif-panel")) setNotifOpen(false);
+      if (!e.target.closest("#profile-panel")) setProfileOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  const handleSignOut = async () => {
+    try {
+      if (auth) await signOut(auth);
+      setProfileOpen(false);
+      navigate("landing");
+    } catch (err) {
+      console.error("Sign out error:", err);
+    }
+  };
+
+  const userInitial = user?.displayName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || (user ? "U" : "G");
+  const userDisplayName = user?.displayName || (user?.email ? user.email.split("@")[0] : "Guest Student");
+  const userEmail = user?.email || "Using Demo Mode";
 
   return (
     <header className="sticky top-0 z-40 flex items-center gap-4 px-6 py-3 bg-white/90 backdrop-blur-md border-b border-paper-border">
@@ -90,8 +110,7 @@ export default function Header({ showSearch = true }) {
               <div className="space-y-3">
                 {[
                   { icon: "🔥", text: "You're on a 7-day streak! Keep going.", time: "Just now" },
-                  { icon: "📝", text: "New flashcards generated for Chapter 1.", time: "2h ago" },
-                  { icon: "🎯", text: "Quiz complete! Score: 8/10", time: "Yesterday" },
+                  { icon: "📝", text: "Notes and flashcards ready to study.", time: "Recent" },
                 ].map((n, i) => (
                   <div key={i} className="flex gap-3 items-start p-2.5 rounded-xl hover:bg-paper-warm cursor-pointer">
                     <span className="text-lg">{n.icon}</span>
@@ -106,28 +125,95 @@ export default function Header({ showSearch = true }) {
           )}
         </div>
 
-        {/* Help */}
+        {/* Capture Quick Action */}
         <button
-          id="header-help"
-          className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-paper-warm text-ink-secondary transition-colors"
+          id="header-capture-btn"
+          onClick={() => navigate("capture-image")}
+          title="Upload or Scan Notes"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-paper-border bg-white text-xs font-semibold text-ink hover:bg-paper-warm transition-colors shadow-sm ml-1"
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M12 21a9 9 0 100-18 9 9 0 000 18z" />
-          </svg>
+          <span>📸</span>
+          <span className="hidden sm:inline">Scan Notes</span>
         </button>
 
-        {/* Avatar */}
-        <button
-          id="header-avatar"
-          className="flex items-center gap-1.5 ml-1 pl-2 pr-1 py-1 rounded-xl hover:bg-paper-warm transition-colors"
-        >
-          <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-sm font-semibold">
-            N
-          </div>
-          <svg className="w-3.5 h-3.5 text-ink-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+        {/* Profile Dropdown */}
+        <div id="profile-panel" className="relative ml-1">
+          <button
+            id="header-avatar"
+            onClick={() => setProfileOpen(o => !o)}
+            className="flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-xl hover:bg-paper-warm transition-colors"
+          >
+            {user?.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt={userDisplayName}
+                className="w-8 h-8 rounded-full object-cover border border-paper-border"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-sm font-semibold shadow-sm">
+                {userInitial}
+              </div>
+            )}
+            <svg className="w-3.5 h-3.5 text-ink-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {profileOpen && (
+            <div className="absolute right-0 top-11 w-64 bg-white rounded-2xl shadow-panel border border-paper-border p-3 animate-slide-down">
+              {/* User info */}
+              <div className="flex items-center gap-3 p-2.5 border-b border-paper-border mb-2">
+                <div className="w-10 h-10 rounded-full bg-accent text-white font-bold text-base flex items-center justify-center shrink-0">
+                  {userInitial}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-ink truncate">{userDisplayName}</p>
+                  <p className="text-xs text-ink-tertiary truncate">{userEmail}</p>
+                </div>
+              </div>
+
+              {/* Navigation Actions */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => { setProfileOpen(false); navigate("canvas"); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-ink hover:bg-paper-warm transition-colors text-left"
+                >
+                  <span>🎨</span>
+                  <span>My Study Canvas</span>
+                </button>
+                <button
+                  onClick={() => { setProfileOpen(false); navigate("capture-image"); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-ink hover:bg-paper-warm transition-colors text-left"
+                >
+                  <span>📷</span>
+                  <span>Capture & Ingest Notes</span>
+                </button>
+
+                <div className="h-px bg-paper-border my-1.5" />
+
+                {user ? (
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    <span>Sign Out</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { setProfileOpen(false); navigate("login"); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-accent hover:bg-accent/10 transition-colors text-left"
+                  >
+                    <span>🔐</span>
+                    <span>Sign In / Create Account</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

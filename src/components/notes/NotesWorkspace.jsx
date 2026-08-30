@@ -78,6 +78,10 @@ const AI_MESSAGES = [
 export default function NotesWorkspace() {
   const { navigate, activeChapter, breadcrumb, activeTab, setActiveTab } = useNav();
   const chapter = activeChapter || { id: "c1", name: "Chapter 1: Motion" };
+  const effectiveCards = chapter.cards && chapter.cards.length > 0 ? chapter.cards : MOCK_CARDS;
+  const effectiveRegions = chapter.regions && chapter.regions.length > 0 ? chapter.regions : MOCK_REGIONS;
+  const photoUrl = chapter.photoUrl || null;
+
   const bc = breadcrumb || [
     { label: "My Space", page: "canvas" },
     { label: "Science", page: "folder" },
@@ -92,20 +96,25 @@ export default function NotesWorkspace() {
   const sendAiMessage = () => {
     if (!aiInput.trim()) return;
     const newMsg = { role: "user", text: aiInput };
-    setAiMessages(prev => [...prev, newMsg]);
+    setAiMessages((prev) => [...prev, newMsg]);
     setAiInput("");
     setAiLoading(true);
     setTimeout(() => {
-      setAiMessages(prev => [...prev, {
-        role: "ai",
-        text: "Great question! Based on your Chapter 1 notes, " + aiInput.toLowerCase().includes("formula") ?
-          "the key formulas are v = u + at, s = ut + ½at², and v² = u² + 2as." :
-          "let me find the relevant section in your notes...",
-        context: `Based on your notes — ${chapter.name}`,
-        suggestions: ["Explain with an example", "Give me more key points", "Quiz me on this"],
-      }]);
+      setAiMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          text: `Based on your notes for ${chapter.name}: ${
+            aiInput.toLowerCase().includes("formula")
+              ? "The key formulas and steps are recorded in your flashcards."
+              : "Reviewing your notes and flashcards will help solidify these concepts!"
+          }`,
+          context: `Based on your notes — ${chapter.name}`,
+          suggestions: ["Explain key points", "Quiz me on this", "Show formulas"],
+        },
+      ]);
       setAiLoading(false);
-    }, 1200);
+    }, 1000);
   };
 
   const tab = activeTab || "notes";
@@ -114,8 +123,8 @@ export default function NotesWorkspace() {
     return (
       <div className="flex flex-col h-screen bg-paper">
         <Header />
-        <WorkspaceTabs tab={tab} setTab={setActiveTab} bc={bc} chapter={chapter} />
-        <FlashcardsWorkspace cards={MOCK_CARDS} chapter={chapter} />
+        <WorkspaceTabs tab={tab} setTab={setActiveTab} bc={bc} chapter={chapter} cardCount={effectiveCards.length} />
+        <FlashcardsWorkspace cards={effectiveCards} chapter={chapter} />
       </div>
     );
   }
@@ -124,13 +133,13 @@ export default function NotesWorkspace() {
     return (
       <div className="flex flex-col h-screen bg-paper">
         <Header />
-        <WorkspaceTabs tab={tab} setTab={setActiveTab} bc={bc} chapter={chapter} />
+        <WorkspaceTabs tab={tab} setTab={setActiveTab} bc={bc} chapter={chapter} cardCount={effectiveCards.length} />
         <div className="flex-1 overflow-y-auto p-6">
           <QuizScreen
-            deck={{ title: chapter.name, cardCount: MOCK_CARDS.length }}
-            cards={MOCK_CARDS}
-            regions={MOCK_REGIONS}
-            photoUrl={null}
+            deck={{ title: chapter.name, cardCount: effectiveCards.length }}
+            cards={effectiveCards}
+            regions={effectiveRegions}
+            photoUrl={photoUrl}
             onExit={() => setActiveTab("notes")}
           />
         </div>
@@ -332,7 +341,7 @@ export default function NotesWorkspace() {
 }
 
 // Workspace tab bar shared across Notes/Flashcards/Quizzes
-function WorkspaceTabs({ tab, setTab, bc, chapter }) {
+function WorkspaceTabs({ tab, setTab, bc, chapter, cardCount }) {
   const { navigate } = useNav();
 
   return (
@@ -364,11 +373,12 @@ function WorkspaceTabs({ tab, setTab, bc, chapter }) {
       <div className="flex items-center gap-2">
         {tab === "flashcards" && (
           <span className="text-xs text-ink-tertiary font-medium">
-            {generateMockCards().cards.length} cards
+            {cardCount || 0} cards
           </span>
         )}
         <button
           id="workspace-upload-btn"
+          onClick={() => navigate("capture-image")}
           className="flex items-center gap-1.5 text-sm font-medium text-ink border border-paper-border px-3 py-1.5 rounded-xl hover:bg-paper-warm transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -376,7 +386,11 @@ function WorkspaceTabs({ tab, setTab, bc, chapter }) {
           </svg>
           Upload
         </button>
-        <button className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-paper-warm text-ink-secondary transition-colors">
+        <button
+          onClick={() => navigate("canvas")}
+          title="Back to Canvas"
+          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-paper-warm text-ink-secondary transition-colors"
+        >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
           </svg>

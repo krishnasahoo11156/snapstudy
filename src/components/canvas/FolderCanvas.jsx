@@ -14,8 +14,53 @@ const SCIENCE_CHAPTERS = [
 export default function FolderCanvas() {
   const { navigate, activeFolder, breadcrumb } = useNav();
   const folder = activeFolder || { id: "f1", name: "Science", icon: "⚛️" };
-  const [chapters, setChapters] = useState(SCIENCE_CHAPTERS);
+  const storageKey = `snapstudy_chapters_${folder.id}`;
+
+  const [chapters, setChapters] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn("Failed to load chapters from localStorage:", e);
+    }
+
+    if (folder.isScannedNote && folder.cards) {
+      return [
+        {
+          id: `c_${folder.id}`,
+          name: folder.name,
+          icon: "📸",
+          itemCount: folder.cards.length,
+          lastStudied: "Today",
+          color: folder.color || "yellow",
+          decoration: "tape",
+          rotation: 0,
+          x: 200,
+          y: 120,
+          zIndex: 1,
+          cards: folder.cards,
+          regions: folder.regions,
+          photoUrl: folder.photoUrl,
+        },
+      ];
+    }
+
+    return SCIENCE_CHAPTERS;
+  });
+
   const [showCreate, setShowCreate] = useState(false);
+
+  const saveAndSetChapters = (updater) => {
+    setChapters((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(next));
+      } catch (e) {
+        console.warn("Failed to save chapters:", e);
+      }
+      return next;
+    });
+  };
 
   const bc = breadcrumb?.length ? breadcrumb : [
     { label: "My Space", page: "canvas" },
@@ -35,16 +80,35 @@ export default function FolderCanvas() {
   };
 
   const handleDragEnd = (id, nx, ny) => {
-    setChapters(prev => prev.map(c => c.id === id ? { ...c, x: nx, y: ny } : c));
+    saveAndSetChapters((prev) => prev.map((c) => (c.id === id ? { ...c, x: nx, y: ny } : c)));
   };
-  const handleDelete = (id) => setChapters(prev => prev.filter(c => c.id !== id));
-  const handleRename = (id, name) => setChapters(prev => prev.map(c => c.id === id ? { ...c, name } : c));
+  const handleDelete = (id) => saveAndSetChapters((prev) => prev.filter((c) => c.id !== id));
+  const handleRename = (id, name) => saveAndSetChapters((prev) => prev.map((c) => (c.id === id ? { ...c, name } : c)));
   const handleDuplicate = (id) => {
-    const src = chapters.find(c => c.id === id);
+    const src = chapters.find((c) => c.id === id);
     if (!src) return;
-    setChapters(prev => [...prev, { ...src, id: `c${Date.now()}`, name: src.name + " (copy)", x: src.x + 20, y: src.y + 20 }]);
+    saveAndSetChapters((prev) => [...prev, { ...src, id: `c${Date.now()}`, name: src.name + " (copy)", x: src.x + 20, y: src.y + 20 }]);
   };
-  const handleColorChange = (id, color) => setChapters(prev => prev.map(c => c.id === id ? { ...c, color } : c));
+  const handleColorChange = (id, color) => saveAndSetChapters((prev) => prev.map((c) => (c.id === id ? { ...c, color } : c)));
+
+  const handleCreateChapter = () => {
+    saveAndSetChapters((prev) => [
+      ...prev,
+      {
+        id: `c${Date.now()}`,
+        name: "New Chapter",
+        icon: "📌",
+        itemCount: 0,
+        lastStudied: "Never",
+        color: ["yellow", "pink", "blue", "green", "lavender", "mint", "peach"][prev.length % 7],
+        decoration: "tape",
+        rotation: (Math.random() - 0.5) * 4,
+        x: 200 + (prev.length % 4) * 190,
+        y: 120 + Math.floor(prev.length / 4) * 210,
+        zIndex: 1,
+      },
+    ]);
+  };
 
   return (
     <div className="flex flex-col h-screen bg-paper overflow-hidden">
@@ -65,20 +129,9 @@ export default function FolderCanvas() {
                 <span className="text-2xl">{folder.icon}</span>
               </h1>
               <button
-                onClick={() => setChapters(prev => [...prev, {
-                  id: `c${Date.now()}`,
-                  name: "New Chapter",
-                  icon: "📌",
-                  itemCount: 0,
-                  lastStudied: "Never",
-                  color: ["yellow","pink","blue","green","lavender","mint","peach"][prev.length % 7],
-                  decoration: "tape",
-                  rotation: (Math.random()-0.5)*4,
-                  x: 200 + (prev.length%4)*190,
-                  y: 120 + Math.floor(prev.length/4)*210,
-                  zIndex: 1,
-                }])}
+                onClick={handleCreateChapter}
                 className="pointer-events-auto"
+                title="Add Chapter"
               >
                 <svg className="w-4 h-4 text-ink-tertiary hover:text-ink transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
@@ -94,7 +147,7 @@ export default function FolderCanvas() {
           <div className="absolute top-6 right-6 z-10">
             <button
               id="folder-create-btn"
-              onClick={() => setShowCreate(o => !o)}
+              onClick={() => setShowCreate((o) => !o)}
               className="flex items-center gap-2 bg-ink text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-ink/80 transition-colors shadow-sm"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -105,14 +158,15 @@ export default function FolderCanvas() {
             {showCreate && (
               <div className="absolute right-0 top-11 bg-white rounded-2xl shadow-panel border border-paper-border p-2 w-44 animate-slide-down">
                 {[
-                  { icon: "📁", label: "New Chapter" },
-                  { icon: "🖼️", label: "Upload Image" },
-                  { icon: "📄", label: "Upload File" },
-                  { icon: "📝", label: "Create Note" },
+                  { icon: "📁", label: "New Chapter", action: handleCreateChapter },
+                  { icon: "🖼️", label: "Upload Image", action: () => navigate("capture-image") },
+                  { icon: "📄", label: "Upload File", action: () => navigate("capture-file") },
+                  { icon: "📝", label: "Create Note", action: () => navigate("notes", { chapter: { id: "new", name: "New Note" }, breadcrumb: [...bc, { label: "New Note" }] }) },
                 ].map((item, i) => (
                   <button
                     key={i}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-ink hover:bg-paper-warm transition-colors"
+                    onClick={() => { setShowCreate(false); item.action(); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-ink hover:bg-paper-warm transition-colors text-left"
                   >
                     <span>{item.icon}</span>
                     {item.label}
@@ -123,7 +177,7 @@ export default function FolderCanvas() {
           </div>
 
           {/* Chapter sticky notes */}
-          {chapters.map(chapter => (
+          {chapters.map((chapter) => (
             <StickyNote
               key={chapter.id}
               folder={chapter}
@@ -141,13 +195,14 @@ export default function FolderCanvas() {
 
           {/* Dashed "create or upload" placeholder */}
           <div
+            onClick={() => navigate("capture-image")}
             className="absolute border-2 border-dashed border-ink-light rounded-sm flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:border-accent hover:bg-accent/5 transition-colors"
             style={{ width: 160, minHeight: 172, left: 390 + 190 * 2, top: 120 }}
           >
             <svg className="w-6 h-6 text-ink-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            <p className="text-xs text-ink-tertiary text-center leading-tight px-2">Create folder<br/>or upload</p>
+            <p className="text-xs text-ink-tertiary text-center leading-tight px-2">Upload or scan<br/>study notes</p>
           </div>
         </div>
 

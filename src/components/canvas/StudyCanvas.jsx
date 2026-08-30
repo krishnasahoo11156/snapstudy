@@ -1,17 +1,16 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "../../lib/firebase";
+import { getPhotoRecords } from "../../lib/firestore";
 import { useNav } from "../../context/NavContext";
 import StickyNote from "./StickyNote";
 import Header from "../ui/Header";
 
-const INITIAL_FOLDERS = [
-  { id: "f1", name: "Science", icon: "⚛️", itemCount: 12, lastStudied: "2 days ago", color: "yellow", decoration: "tape", rotation: -2, x: 210, y: 90, zIndex: 1 },
-  { id: "f2", name: "Mathematics", icon: "√x", itemCount: 9, lastStudied: "Yesterday", color: "pink", decoration: "pin", pinColor: "#DC2626", rotation: 1.5, x: 400, y: 80, zIndex: 1 },
-  { id: "f3", name: "Computer Science", icon: "</>", itemCount: 15, lastStudied: "3 days ago", color: "blue", decoration: "tape-sideways", rotation: -1, x: 590, y: 95, zIndex: 1 },
-  { id: "f4", name: "English", icon: "📖", itemCount: 7, lastStudied: "5 days ago", color: "green", decoration: "pin", pinColor: "#16A34A", rotation: 2, x: 780, y: 85, zIndex: 1 },
-  { id: "f5", name: "History", icon: "🏛️", itemCount: 6, lastStudied: "1 week ago", color: "lavender", decoration: "tape", rotation: -1.5, x: 210, y: 300, zIndex: 1 },
-  { id: "f6", name: "Economics", icon: "📈", itemCount: 8, lastStudied: "1 week ago", color: "peach", decoration: "pin", pinColor: "#D97706", rotation: 1, x: 400, y: 295, zIndex: 1 },
-  { id: "f7", name: "Biology", icon: "🧬", itemCount: 10, lastStudied: "4 days ago", color: "mint", decoration: "tape", rotation: 0.5, x: 590, y: 305, zIndex: 1 },
-  { id: "f8", name: "Ideas & Misc", icon: "💡", itemCount: 3, lastStudied: "2 weeks ago", color: "pink", decoration: "tape-sideways", rotation: -0.5, x: 780, y: 290, zIndex: 1 },
+const DEFAULT_STARTER_FOLDERS = [
+  { id: "f1", name: "Science", icon: "⚛️", itemCount: 4, lastStudied: "Today", color: "yellow", decoration: "tape", rotation: -2, x: 210, y: 90, zIndex: 1 },
+  { id: "f2", name: "Mathematics", icon: "√x", itemCount: 2, lastStudied: "Yesterday", color: "pink", decoration: "pin", pinColor: "#DC2626", rotation: 1.5, x: 400, y: 80, zIndex: 1 },
+  { id: "f3", name: "Computer Science", icon: "</>", itemCount: 3, lastStudied: "3 days ago", color: "blue", decoration: "tape-sideways", rotation: -1, x: 590, y: 95, zIndex: 1 },
+  { id: "f4", name: "Physics & Notes", icon: "📝", itemCount: 1, lastStudied: "Recently", color: "green", decoration: "pin", pinColor: "#16A34A", rotation: 2, x: 780, y: 85, zIndex: 1 },
 ];
 
 const WEEK_DAYS = ["M", "T", "W", "T", "F", "S", "S"];
@@ -19,12 +18,82 @@ const STREAK_DONE = [true, true, true, true, true, true, false];
 
 export default function StudyCanvas() {
   const { navigate } = useNav();
-  const [folders, setFolders] = useState(INITIAL_FOLDERS);
+  const [user] = auth ? useAuthState(auth) : [null];
+  const uid = user?.uid || "guest_user";
+  const storageKey = `snapstudy_folders_${uid}`;
+
+  const [folders, setFolders] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn("Failed to load initial folders from localStorage:", e);
+    }
+    return DEFAULT_STARTER_FOLDERS;
+  });
+
   const [createOpen, setCreateOpen] = useState(false);
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderIcon, setNewFolderIcon] = useState("📁");
   const canvasRef = useRef(null);
+
+  // Sync with Firestore photo records (user notes scanned via Capture)
+  useEffect(() => {
+    const loadUserScannedNotes = async () => {
+      try {
+        const records = await getPhotoRecords(uid);
+        if (records && records.length > 0) {
+          setFolders((prev) => {
+            const existingIds = new Set(prev.map((f) => f.id));
+            const newFolders = [...prev];
+
+            records.forEach((rec, idx) => {
+              const recFolderId = `scanned_${rec.id}`;
+              if (!existingIds.has(recFolderId)) {
+                newFolders.push({
+                  id: recFolderId,
+                  name: rec.regions?.[0]?.label ? rec.regions[0].label : `Note Scan #${records.length - idx}`,
+                  icon: "📸",
+                  itemCount: rec.cards?.length || 1,
+                  lastStudied: "Just now",
+                  color: ["yellow", "mint", "peach", "lavender", "blue"][idx % 5],
+                  decoration: "tape",
+                  rotation: (Math.random() - 0.5) * 3,
+                  x: 210 + (newFolders.length % 4) * 190,
+                  y: 90 + Math.floor(newFolders.length / 4) * 210,
+                  zIndex: 1,
+                  cards: rec.cards || [],
+                  regions: rec.regions || [],
+                  photoUrl: rec.originalPhotoUrl || null,
+                  isScannedNote: true,
+                });
+              }
+            });
+
+            localStorage.setItem(storageKey, JSON.stringify(newFolders));
+            return newFolders;
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to sync scanned notes to canvas:", err);
+      }
+    };
+
+    loadUserScannedNotes();
+  }, [uid]);
+
+  const saveAndSetFolders = (updater) => {
+    setFolders((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(next));
+      } catch (e) {
+        console.warn("Failed to persist folders to localStorage:", e);
+      }
+      return next;
+    });
+  };
 
   const handleFolderClick = (folder) => {
     navigate("folder", {
@@ -37,49 +106,55 @@ export default function StudyCanvas() {
   };
 
   const handleDragEnd = (id, nx, ny) => {
-    setFolders(prev => prev.map(f => f.id === id ? { ...f, x: nx, y: ny } : f));
+    saveAndSetFolders((prev) => prev.map((f) => (f.id === id ? { ...f, x: nx, y: ny } : f)));
   };
 
   const handleDelete = (id) => {
-    setFolders(prev => prev.filter(f => f.id !== id));
+    saveAndSetFolders((prev) => prev.filter((f) => f.id !== id));
   };
 
   const handleRename = (id, name) => {
-    setFolders(prev => prev.map(f => f.id === id ? { ...f, name } : f));
+    saveAndSetFolders((prev) => prev.map((f) => (f.id === id ? { ...f, name } : f)));
   };
 
   const handleDuplicate = (id) => {
-    const src = folders.find(f => f.id === id);
+    const src = folders.find((f) => f.id === id);
     if (!src) return;
-    setFolders(prev => [...prev, {
-      ...src,
-      id: `f${Date.now()}`,
-      name: src.name + " (copy)",
-      x: src.x + 20,
-      y: src.y + 20,
-    }]);
+    saveAndSetFolders((prev) => [
+      ...prev,
+      {
+        ...src,
+        id: `f${Date.now()}`,
+        name: src.name + " (copy)",
+        x: src.x + 20,
+        y: src.y + 20,
+      },
+    ]);
   };
 
   const handleColorChange = (id, color) => {
-    setFolders(prev => prev.map(f => f.id === id ? { ...f, color } : f));
+    saveAndSetFolders((prev) => prev.map((f) => (f.id === id ? { ...f, color } : f)));
   };
 
   const createFolder = () => {
     if (!newFolderName.trim()) return;
     const colors = ["yellow", "pink", "blue", "green", "lavender", "mint", "peach"];
-    setFolders(prev => [...prev, {
-      id: `f${Date.now()}`,
-      name: newFolderName.trim(),
-      icon: newFolderIcon,
-      itemCount: 0,
-      lastStudied: "Never",
-      color: colors[prev.length % colors.length],
-      decoration: "tape",
-      rotation: (Math.random() - 0.5) * 4,
-      x: 220 + (prev.length % 4) * 190,
-      y: 90 + Math.floor(prev.length / 4) * 210,
-      zIndex: 1,
-    }]);
+    saveAndSetFolders((prev) => [
+      ...prev,
+      {
+        id: `f${Date.now()}`,
+        name: newFolderName.trim(),
+        icon: newFolderIcon,
+        itemCount: 0,
+        lastStudied: "Never",
+        color: colors[prev.length % colors.length],
+        decoration: "tape",
+        rotation: (Math.random() - 0.5) * 4,
+        x: 220 + (prev.length % 4) * 190,
+        y: 90 + Math.floor(prev.length / 4) * 210,
+        zIndex: 1,
+      },
+    ]);
     setNewFolderName("");
     setNewFolderIcon("📁");
     setShowNewFolderModal(false);
