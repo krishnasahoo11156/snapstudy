@@ -164,24 +164,6 @@ export default function CaptureScreen() {
             Photograph notes → Spatial region detection → Type-aware flashcards with coordinate linkage
           </p>
         </div>
-
-        {/* Mock/Live Toggle */}
-        <label className="flex items-center gap-2.5 cursor-pointer rounded-xl bg-slate-800/80 px-3.5 py-2 border border-slate-700/60 hover:bg-slate-800 transition">
-          <input
-            type="checkbox"
-            checked={useMock}
-            onChange={handleToggleMock}
-            className="rounded border-slate-600 text-blue-500 focus:ring-blue-500/30 h-4 w-4 bg-slate-900"
-          />
-          <div className="text-left">
-            <span className="block text-xs font-semibold text-slate-200">
-              {useMock ? "🧪 Mock Mode Enabled" : "⚡ Real Gemini API"}
-            </span>
-            <span className="block text-[10px] text-slate-400">
-              {useMock ? "Simulated AI responses" : "Live Gemini 1.5 Flash backend"}
-            </span>
-          </div>
-        </label>
       </div>
 
       {/* Main Content Area */}
