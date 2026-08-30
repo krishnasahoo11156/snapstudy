@@ -9,10 +9,10 @@ export default function FlashcardQa({ card, onFlipped }) {
     <FlashcardFlip
       onFlipped={onFlipped}
       front={
-        <p className="text-lg font-semibold text-slate-100 leading-snug">{card.front}</p>
+        <p className="text-lg font-semibold text-ink leading-snug">{card.front}</p>
       }
       back={
-        <p className="text-base text-slate-200 leading-relaxed">{card.back}</p>
+        <p className="text-base text-ink-secondary leading-relaxed">{card.back}</p>
       }
     />
   );

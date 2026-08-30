@@ -14,20 +14,20 @@ function ProgressRing({ percent, size = 48, stroke = 4 }) {
   const offset = circ - (percent / 100) * circ;
   return (
     <svg width={size} height={size}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(51 65 85)" strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E8E3D8" strokeWidth={stroke} />
       <circle
         cx={size / 2}
         cy={size / 2}
         r={r}
         fill="none"
-        stroke="#60a5fa"
+        stroke="#7C3AED"
         strokeWidth={stroke}
         strokeDasharray={circ}
         strokeDashoffset={offset}
         strokeLinecap="round"
         className="progress-ring-circle"
       />
-      <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontSize={size * 0.22} fill="#94a3b8" fontWeight="600">
+      <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontSize={size * 0.22} fill="#57534E" fontWeight="600">
         {percent}%
       </text>
     </svg>
@@ -118,11 +118,11 @@ export default function StudyDashboard() {
   const recentDeck = decks[0];
 
   return (
-    <div className="min-h-full p-6 animate-fade-in">
+    <div className="min-h-full p-6 animate-fade-in bg-paper text-ink">
       {/* Header */}
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-100">Study Dashboard</h2>
-        <p className="mt-1 text-sm text-slate-400">
+        <h2 className="text-2xl font-bold text-ink">Study Dashboard</h2>
+        <p className="mt-1 text-sm text-ink-secondary">
           {decks.reduce((acc, d) => acc + d.cardCount, 0)} cards across {decks.length} decks
         </p>
       </div>
@@ -130,20 +130,17 @@ export default function StudyDashboard() {
       {/* Continue Studying CTA */}
       {recentDeck && (
         <div className="mb-8">
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-violet-600 p-6 shadow-xl shadow-blue-500/20">
-            <div className="pointer-events-none absolute inset-0 opacity-20">
-              <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white blur-2xl" />
-            </div>
+          <div className="relative overflow-hidden rounded-3xl bg-ink p-6 shadow-card text-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-blue-200 mb-1">Continue Where You Left Off</p>
+                <p className="text-xs font-semibold uppercase tracking-widest text-ink-tertiary mb-1">Continue Where You Left Off</p>
                 <h3 className="text-lg font-bold text-white">{recentDeck.title}</h3>
-                <p className="mt-1 text-sm text-blue-200">{recentDeck.cardCount - recentDeck.masteredCount} cards remaining</p>
+                <p className="mt-1 text-sm text-ink-light">{recentDeck.cardCount - recentDeck.masteredCount} cards remaining</p>
               </div>
               <button
                 id="continue-studying-btn"
                 onClick={() => setActiveQuiz(recentDeck)}
-                className="shrink-0 rounded-xl bg-white/20 backdrop-blur-sm px-5 py-2.5 text-sm font-semibold text-white border border-white/30 hover:bg-white/30 transition-all"
+                className="shrink-0 rounded-2xl bg-white px-5 py-2.5 text-sm font-semibold text-ink hover:bg-paper-warm transition-all shadow-sm"
               >
                 Continue →
               </button>
@@ -154,12 +151,12 @@ export default function StudyDashboard() {
 
       {/* Deck Grid */}
       <div>
-        <h3 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">Your Decks</h3>
+        <h3 className="mb-4 text-sm font-semibold uppercase tracking-widest text-ink-tertiary">Your Decks</h3>
         {decks.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/40">
+          <div className="flex flex-col items-center justify-center p-12 text-center rounded-3xl border border-dashed border-paper-border bg-white shadow-card">
             <span className="text-4xl mb-3">📚</span>
-            <h4 className="text-lg font-bold text-slate-200">No note decks yet</h4>
-            <p className="text-xs text-slate-400 mt-1 max-w-sm">
+            <h4 className="text-lg font-bold text-ink">No note decks yet</h4>
+            <p className="text-xs text-ink-secondary mt-1 max-w-sm">
               Use the Capture tab to scan handwritten notes and generate instant flashcards.
             </p>
           </div>
@@ -170,7 +167,7 @@ export default function StudyDashboard() {
               return (
                 <div
                   key={deck.id}
-                  className="glass-card group relative cursor-pointer rounded-2xl p-5 transition-all duration-200 hover:border-slate-600/60 hover:shadow-lg"
+                  className="bg-white border border-paper-border group relative cursor-pointer rounded-3xl p-5 transition-all duration-200 hover:shadow-card-hover hover:border-accent/40 shadow-card"
                   onClick={() => setActiveQuiz(deck)}
                   id={`deck-card-${deck.id}`}
                 >
@@ -181,7 +178,7 @@ export default function StudyDashboard() {
                       setDeckToDelete(deck);
                     }}
                     title="Delete note deck"
-                    className="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900/80 text-slate-400 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/40 border border-slate-700/50 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg"
+                    className="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-xl bg-white/90 text-ink-secondary hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-paper-border backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-sm"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
@@ -189,7 +186,7 @@ export default function StudyDashboard() {
                   </button>
 
                   {/* Thumbnail */}
-                  <div className={`relative mb-4 h-32 w-full overflow-hidden rounded-xl bg-gradient-to-br ${deck.color} opacity-90 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center border border-slate-700/30`}>
+                  <div className={`relative mb-4 h-32 w-full overflow-hidden rounded-2xl bg-gradient-to-br ${deck.color} opacity-90 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center border border-paper-border`}>
                     {deck.photoUrl ? (
                       <img
                         src={deck.photoUrl}
@@ -198,7 +195,6 @@ export default function StudyDashboard() {
                       />
                     ) : (
                       <>
-                        {/* Notebook ruled grid pattern */}
                         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:12px_12px]" />
                         <div className="absolute inset-0 flex items-center justify-center">
                           <span className="text-4xl select-none filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)] transform group-hover:scale-110 transition-transform duration-200">
@@ -211,17 +207,17 @@ export default function StudyDashboard() {
 
                   {/* Subject badge & Progress */}
                   <div className="mb-3 flex items-center justify-between">
-                    <span className={`rounded-lg bg-gradient-to-r ${deck.color} px-2.5 py-1 text-xs font-semibold text-white`}>
+                    <span className="rounded-lg bg-paper-warm border border-paper-border px-2.5 py-1 text-xs font-semibold text-ink">
                       {deck.subject}
                     </span>
                     <ProgressRing percent={mastery} />
                   </div>
 
-                  <h4 className="font-semibold text-slate-100 text-sm leading-snug group-hover:text-blue-400 transition-colors line-clamp-2 pr-6">
+                  <h4 className="font-semibold text-ink text-sm leading-snug group-hover:text-accent transition-colors line-clamp-2 pr-6">
                     {deck.title}
                   </h4>
 
-                  <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+                  <div className="mt-3 flex items-center justify-between text-xs text-ink-tertiary">
                     <span>{deck.cardCount} cards · {deck.masteredCount} mastered</span>
                     <span>{deck.lastStudied}</span>
                   </div>
@@ -234,18 +230,18 @@ export default function StudyDashboard() {
 
       {/* Delete Confirmation Modal */}
       {deckToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/20 text-red-400 border border-red-500/30">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md rounded-3xl border border-paper-border bg-white p-6 shadow-panel space-y-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-500 border border-red-200">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
               </svg>
             </div>
 
             <div>
-              <h3 className="text-lg font-bold text-slate-100">Delete Study Notes?</h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Are you sure you want to delete <span className="font-semibold text-slate-200">"{deckToDelete.title}"</span>? This will permanently remove its {deckToDelete.cardCount} flashcards and scanned regions.
+              <h3 className="text-lg font-bold text-ink">Delete Study Notes?</h3>
+              <p className="text-xs text-ink-secondary mt-1">
+                Are you sure you want to delete <span className="font-semibold text-ink">"{deckToDelete.title}"</span>? This will permanently remove its {deckToDelete.cardCount} flashcards and scanned regions.
               </p>
             </div>
 
@@ -254,7 +250,7 @@ export default function StudyDashboard() {
                 type="button"
                 onClick={() => setDeckToDelete(null)}
                 disabled={isDeleting}
-                className="rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition"
+                className="rounded-xl border border-paper-border bg-white px-4 py-2 text-xs font-semibold text-ink-secondary hover:bg-paper-warm transition"
               >
                 Cancel
               </button>
@@ -262,7 +258,7 @@ export default function StudyDashboard() {
                 type="button"
                 onClick={confirmDeleteDeck}
                 disabled={isDeleting}
-                className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-red-600/30 hover:bg-red-500 transition"
+                className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-red-700 transition"
               >
                 {isDeleting ? "Deleting…" : "Delete Notes"}
               </button>

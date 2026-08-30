@@ -27,10 +27,10 @@ export default function FlashcardFlip({ front, back, onFlipped }) {
     >
       <div className={`transform-style-3d relative h-full w-full transition-transform duration-500 ${flipped ? "rotate-y-180" : ""}`}>
         {/* Front */}
-        <div className="backface-hidden absolute inset-0 flex flex-col rounded-2xl bg-gradient-to-br from-slate-800 to-slate-800/80 border border-slate-700/60 p-6 shadow-xl">
+        <div className="backface-hidden absolute inset-0 flex flex-col rounded-3xl bg-white border border-paper-border p-8 shadow-card hover:shadow-card-hover transition-shadow">
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">Question</span>
-            <span className="text-xs text-slate-600">Tap to flip</span>
+            <span className="text-xs font-semibold uppercase tracking-widest text-ink-tertiary">Question</span>
+            <span className="text-xs text-ink-tertiary">Tap to flip</span>
           </div>
           <div className="flex flex-1 items-center justify-center text-center">
             {front}
@@ -38,10 +38,10 @@ export default function FlashcardFlip({ front, back, onFlipped }) {
         </div>
 
         {/* Back */}
-        <div className="backface-hidden rotate-y-180 absolute inset-0 flex flex-col rounded-2xl bg-gradient-to-br from-blue-950 to-violet-950 border border-blue-700/40 p-6 shadow-xl">
+        <div className="backface-hidden rotate-y-180 absolute inset-0 flex flex-col rounded-3xl bg-white border-2 border-accent/30 p-8 shadow-card">
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-widest text-blue-400/70">Answer</span>
-            <span className="text-xs text-slate-600">Tap to flip back</span>
+            <span className="text-xs font-semibold uppercase tracking-widest text-accent">Answer</span>
+            <span className="text-xs text-ink-tertiary">Tap to flip back</span>
           </div>
           <div className="flex flex-1 items-center justify-center text-center overflow-y-auto">
             {back}

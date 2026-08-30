@@ -6,41 +6,41 @@ export const REGION_COLORS = {
   equation: {
     border: "border-blue-500",
     bg: "bg-blue-500/15",
-    activeBorder: "border-blue-400 ring-2 ring-blue-400/50 shadow-blue-500/30",
-    badge: "bg-blue-500/20 text-blue-300 border-blue-500/40",
-    dot: "bg-blue-400",
+    activeBorder: "border-blue-500 ring-2 ring-blue-400/50 shadow-md",
+    badge: "bg-blue-50 text-blue-700 border-blue-200",
+    dot: "bg-blue-500",
     name: "Equation",
   },
   diagram: {
     border: "border-emerald-500",
     bg: "bg-emerald-500/15",
-    activeBorder: "border-emerald-400 ring-2 ring-emerald-400/50 shadow-emerald-500/30",
-    badge: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
-    dot: "bg-emerald-400",
+    activeBorder: "border-emerald-500 ring-2 ring-emerald-400/50 shadow-md",
+    badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    dot: "bg-emerald-500",
     name: "Diagram",
   },
   definition: {
     border: "border-purple-500",
     bg: "bg-purple-500/15",
-    activeBorder: "border-purple-400 ring-2 ring-purple-400/50 shadow-purple-500/30",
-    badge: "bg-purple-500/20 text-purple-300 border-purple-500/40",
-    dot: "bg-purple-400",
+    activeBorder: "border-purple-500 ring-2 ring-purple-400/50 shadow-md",
+    badge: "bg-purple-50 text-purple-700 border-purple-200",
+    dot: "bg-purple-500",
     name: "Definition",
   },
   list: {
     border: "border-orange-500",
     bg: "bg-orange-500/15",
-    activeBorder: "border-orange-400 ring-2 ring-orange-400/50 shadow-orange-500/30",
-    badge: "bg-orange-500/20 text-orange-300 border-orange-500/40",
-    dot: "bg-orange-400",
+    activeBorder: "border-orange-500 ring-2 ring-orange-400/50 shadow-md",
+    badge: "bg-orange-50 text-orange-700 border-orange-200",
+    dot: "bg-orange-500",
     name: "List",
   },
   prose: {
-    border: "border-slate-400",
-    bg: "bg-slate-400/15",
-    activeBorder: "border-slate-300 ring-2 ring-slate-300/50 shadow-slate-500/30",
-    badge: "bg-slate-500/20 text-slate-300 border-slate-500/40",
-    dot: "bg-slate-400",
+    border: "border-ink-tertiary",
+    bg: "bg-ink/5",
+    activeBorder: "border-ink ring-2 ring-ink/20 shadow-md",
+    badge: "bg-paper-warm text-ink border-paper-border",
+    dot: "bg-ink-secondary",
     name: "Prose",
   },
 };
@@ -66,7 +66,7 @@ export default function RegionOverlay({
   const [hoveredId, setHoveredId] = useState(null);
 
   return (
-    <div className={`relative w-full select-none overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950/60 shadow-2xl backdrop-blur-md ${className}`}>
+    <div className={`relative w-full select-none overflow-hidden rounded-2xl border border-paper-border bg-white shadow-card ${className}`}>
       {/* Original Image */}
       <img
         src={src}
@@ -102,7 +102,7 @@ export default function RegionOverlay({
                   ? `${typeStyle.activeBorder} ${typeStyle.bg} z-30 shadow-lg scale-[1.01]`
                   : isHovered
                   ? `${typeStyle.border} ${typeStyle.bg} z-20 shadow-md`
-                  : `${typeStyle.border} bg-black/10 hover:${typeStyle.bg} z-10 opacity-90 hover:opacity-100`
+                  : `${typeStyle.border} bg-black/5 hover:${typeStyle.bg} z-10 opacity-90 hover:opacity-100`
               }`}
               style={{
                 left,
@@ -113,8 +113,8 @@ export default function RegionOverlay({
             >
               {/* Type pill / Region identifier tag */}
               <div
-                className={`absolute -top-3.5 left-2 flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide shadow-md backdrop-blur-md transition-transform ${
-                  isSelected || isHovered ? "scale-105" : "scale-95 opacity-80"
+                className={`absolute -top-3.5 left-2 flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide shadow-sm backdrop-blur-md transition-transform ${
+                  isSelected || isHovered ? "scale-105" : "scale-95 opacity-90"
                 } ${typeStyle.badge}`}
               >
                 <span className={`h-1.5 w-1.5 rounded-full ${typeStyle.dot}`} />
@@ -123,17 +123,17 @@ export default function RegionOverlay({
 
               {/* Hover / Active tooltip */}
               {(isHovered || isSelected) && (
-                <div className="pointer-events-none absolute bottom-full left-1/2 mb-2 w-max max-w-xs -translate-x-1/2 rounded-xl border border-slate-700 bg-slate-900/95 p-2.5 text-left text-xs shadow-2xl backdrop-blur-md z-40 animate-fade-in">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-100">
+                <div className="pointer-events-none absolute bottom-full left-1/2 mb-2 w-max max-w-xs -translate-x-1/2 rounded-xl border border-paper-border bg-white/95 p-2.5 text-left text-xs shadow-panel backdrop-blur-md z-40 animate-fade-in">
+                  <div className="flex items-center gap-1.5 font-bold text-ink">
                     <span className={`h-2 w-2 rounded-full ${typeStyle.dot}`} />
                     <span>{region.label}</span>
                   </div>
                   {region.raw_text && (
-                    <p className="mt-1 line-clamp-2 text-[11px] text-slate-400 font-mono">
+                    <p className="mt-1 line-clamp-2 text-[11px] text-ink-secondary font-mono">
                       {region.raw_text}
                     </p>
                   )}
-                  <p className="mt-1 text-[10px] text-blue-400">
+                  <p className="mt-1 text-[10px] text-accent font-medium">
                     {isSelected ? "Currently selected" : "Click to view linked flashcard"}
                   </p>
                 </div>

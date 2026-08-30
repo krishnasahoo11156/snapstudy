@@ -126,11 +126,11 @@ export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit
     return (
       <div className="flex min-h-full flex-col items-center justify-center p-8 text-center animate-fade-in">
         <div className="relative mb-6">
-          <div className="h-16 w-16 rounded-full border-4 border-slate-800" />
-          <div className="absolute inset-0 h-16 w-16 rounded-full border-4 border-t-amber-500 border-r-blue-500 animate-spin" />
+          <div className="h-16 w-16 rounded-full border-4 border-paper-border" />
+          <div className="absolute inset-0 h-16 w-16 rounded-full border-4 border-t-accent border-r-accent/40 animate-spin" />
         </div>
-        <h3 className="text-lg font-bold text-slate-100">Analyzing Your Notes</h3>
-        <p className="mt-1 text-xs text-amber-300">
+        <h3 className="text-lg font-bold text-ink">Analyzing Your Notes</h3>
+        <p className="mt-1 text-xs text-amber-700 font-medium">
           Gemini AI is finding the exact section in your handwritten notes…
         </p>
       </div>
@@ -154,31 +154,31 @@ export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit
     const correct = responses.filter((r) => r.correct).length;
     const pct = Math.round((correct / cards.length) * 100);
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 bg-slate-950/98 backdrop-blur-2xl animate-fade-in text-slate-100 overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 bg-paper-warm/95 backdrop-blur-md animate-fade-in text-ink overflow-y-auto">
         <div className="w-full max-w-md text-center my-auto">
-          <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-violet-600 shadow-xl shadow-blue-500/25">
+          <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-accent/10 border border-accent/20 shadow-card">
             <span className="text-3xl">{pct >= 80 ? "🎉" : pct >= 50 ? "👍" : "💪"}</span>
           </div>
-          <h2 className="text-2xl font-bold text-slate-100">Quiz Complete!</h2>
-          <p className="mt-2 text-slate-400">{deck.title}</p>
+          <h2 className="text-2xl font-bold text-ink">Quiz Complete!</h2>
+          <p className="mt-2 text-ink-secondary">{deck.title}</p>
 
-          <div className="mt-6 glass-card rounded-2xl p-6 border border-slate-800 bg-slate-900/60 shadow-xl">
-            <div className="text-5xl font-bold gradient-text">{pct}%</div>
-            <p className="mt-1 text-sm text-slate-400">{correct} of {cards.length} correct</p>
+          <div className="mt-6 rounded-3xl p-8 border border-paper-border bg-white shadow-card">
+            <div className="text-5xl font-extrabold text-accent">{pct}%</div>
+            <p className="mt-2 text-sm text-ink-secondary">{correct} of {cards.length} correct</p>
           </div>
 
           <div className="mt-8 flex gap-3">
             <button
               id="quiz-retry-btn"
               onClick={() => { setIndex(0); setResponses([]); setFlipped(false); setFinished(false); }}
-              className="flex-1 rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-3 text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors"
+              className="flex-1 rounded-xl border border-paper-border bg-white px-4 py-3 text-sm font-semibold text-ink hover:bg-paper-warm transition-colors shadow-sm"
             >
               Retry
             </button>
             <button
               id="quiz-exit-btn"
               onClick={onExit}
-              className="flex-1 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-violet-500 transition-all"
+              className="flex-1 rounded-xl bg-ink px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-ink/80 transition-all"
             >
               Done & Return
             </button>
@@ -189,13 +189,13 @@ export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-950/95 backdrop-blur-2xl text-slate-100 animate-fade-in overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex flex-col bg-paper-warm text-ink animate-fade-in overflow-y-auto">
       {/* Immersive Top Bar */}
-      <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-slate-800/80 bg-slate-950/80 px-6 backdrop-blur-md">
+      <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-paper-border bg-white/90 px-6 backdrop-blur-md">
         <button
           id="quiz-back-btn"
           onClick={onExit}
-          className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition-all shadow-sm"
+          className="flex items-center gap-2 rounded-xl border border-paper-border bg-white px-3.5 py-2 text-xs font-semibold text-ink hover:bg-paper-warm transition-all shadow-sm"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
@@ -206,26 +206,26 @@ export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit
         {/* Center: Title & Progress Bar */}
         <div className="flex flex-col items-center gap-1">
           <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-bold text-slate-200 uppercase tracking-wider truncate max-w-xs md:max-w-md">
+            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-bold text-ink uppercase tracking-wider truncate max-w-xs md:max-w-md">
               {deck.title || "Note Quiz Session"}
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <div className="h-1.5 w-32 md:w-48 overflow-hidden rounded-full bg-slate-800">
+            <div className="h-1.5 w-32 md:w-48 overflow-hidden rounded-full bg-paper-border">
               <div
-                className="h-full bg-gradient-to-r from-blue-500 to-violet-500 transition-all duration-300"
+                className="h-full bg-accent transition-all duration-300"
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <span className="text-[11px] font-mono font-medium text-slate-400">
+            <span className="text-[11px] font-mono font-medium text-ink-tertiary">
               {index + 1} / {cards.length}
             </span>
           </div>
         </div>
 
         {/* Right: Card Type Badge */}
-        <span className="hidden sm:inline-flex rounded-lg border border-slate-800 bg-slate-900 px-3 py-1 text-xs font-semibold text-slate-400">
+        <span className="hidden sm:inline-flex rounded-lg border border-paper-border bg-paper-warm px-3 py-1 text-xs font-semibold text-ink-secondary">
           {card.card_type.replace("_", " ")}
         </span>
       </header>
@@ -242,20 +242,20 @@ export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit
               <button
                 id="quiz-need-help-btn"
                 onClick={() => recordResponse(false)}
-                className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-red-500/40 bg-red-500/10 px-5 py-3.5 text-sm font-semibold text-red-300 hover:bg-red-500/20 hover:border-red-500/60 shadow-lg shadow-red-500/10 transition-all"
+                className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-5 py-3.5 text-sm font-semibold text-red-700 hover:bg-red-100 hover:border-red-300 shadow-sm transition-all"
               >
                 <span>✗</span> Need Help / Wrong
               </button>
               <button
                 id="quiz-got-it-btn"
                 onClick={() => recordResponse(true)}
-                className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-5 py-3.5 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/60 shadow-lg shadow-emerald-500/10 transition-all"
+                className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm transition-all"
               >
                 <span>✓</span> Got It!
               </button>
             </div>
           ) : (
-            <p className="mt-6 text-center text-xs text-slate-500 animate-pulse">
+            <p className="mt-6 text-center text-xs text-ink-tertiary animate-pulse">
               💡 Tap or click anywhere on the card to flip and check answer
             </p>
           )}
