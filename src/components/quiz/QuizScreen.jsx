@@ -234,7 +234,7 @@ export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit
       <main className="flex flex-1 flex-col items-center justify-center p-4 md:p-8 max-w-3xl mx-auto w-full">
         <div className="w-full flex flex-col justify-center my-auto">
           {/* Card Container */}
-          <CardRenderer card={card} onFlipped={(f) => setFlipped(f)} />
+          <CardRenderer key={card.id || index} card={card} onFlipped={(f) => setFlipped(f)} />
 
           {/* Action Buttons — shown after flip */}
           {flipped ? (

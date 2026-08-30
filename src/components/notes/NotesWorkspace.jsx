@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNav } from "../../context/NavContext";
 import Header from "../ui/Header";
 import Breadcrumb from "../ui/Breadcrumb";
@@ -76,11 +76,54 @@ const AI_MESSAGES = [
 ];
 
 export default function NotesWorkspace() {
-  const { navigate, activeChapter, breadcrumb, activeTab, setActiveTab } = useNav();
+  const { navigate, activeChapter, breadcrumb, activeTab, setActiveTab, activeFolder, setActiveChapter } = useNav();
   const chapter = activeChapter || { id: "c1", name: "Chapter 1: Motion" };
   const effectiveCards = chapter.cards && chapter.cards.length > 0 ? chapter.cards : MOCK_CARDS;
   const effectiveRegions = chapter.regions && chapter.regions.length > 0 ? chapter.regions : MOCK_REGIONS;
   const photoUrl = chapter.photoUrl || null;
+
+  const folderId = activeFolder?.id || "f1";
+  const chaptersStorageKey = `snapstudy_chapters_${folderId}`;
+
+  const [noteTitle, setNoteTitle] = useState(chapter.name || "");
+  const [noteText, setNoteText] = useState(chapter.notesText || "");
+
+  useEffect(() => {
+    setNoteTitle(chapter.name || "");
+    setNoteText(chapter.notesText || "");
+  }, [chapter.id]);
+
+  const handleUpdateNoteTitle = (newTitle) => {
+    setNoteTitle(newTitle);
+    const updatedChapter = { ...chapter, name: newTitle };
+    setActiveChapter(updatedChapter);
+
+    if (chapter.id !== "c1") {
+      try {
+        const cached = JSON.parse(localStorage.getItem(chaptersStorageKey) || "[]");
+        const next = cached.map((c) => (c.id === chapter.id ? { ...c, name: newTitle } : c));
+        localStorage.setItem(chaptersStorageKey, JSON.stringify(next));
+      } catch (e) {
+        console.warn("Failed to persist updated note title:", e);
+      }
+    }
+  };
+
+  const handleUpdateNoteText = (newText) => {
+    setNoteText(newText);
+    const updatedChapter = { ...chapter, notesText: newText };
+    setActiveChapter(updatedChapter);
+
+    if (chapter.id !== "c1") {
+      try {
+        const cached = JSON.parse(localStorage.getItem(chaptersStorageKey) || "[]");
+        const next = cached.map((c) => (c.id === chapter.id ? { ...c, notesText: newText } : c));
+        localStorage.setItem(chaptersStorageKey, JSON.stringify(next));
+      } catch (e) {
+        console.warn("Failed to persist updated note text:", e);
+      }
+    }
+  };
 
   const bc = breadcrumb || [
     { label: "My Space", page: "canvas" },
@@ -196,50 +239,168 @@ export default function NotesWorkspace() {
           {/* Notes content */}
           <div className="flex-1 overflow-y-auto p-8 max-w-2xl w-full">
             <div className="animate-fade-in">
-              {NOTES_CONTENT.map((block, i) => {
-                if (block.type === "heading") return (
-                  <h1 key={i} className="text-3xl font-bold text-accent mb-6">{block.text}</h1>
-                );
-                if (block.type === "section") return (
-                  <div key={i} className="mb-6">
-                    <h2 className="text-lg font-semibold text-ink mb-2">{block.number}. {block.title}</h2>
-                    {block.content && <p className="text-sm text-ink-secondary leading-relaxed">{block.content}</p>}
-                    {block.bullets && (
-                      <ul className="mt-2 space-y-1">
-                        {block.bullets.map((b, j) => (
-                          <li key={j} className="text-sm text-ink-secondary flex gap-2">
-                            <span className="text-accent mt-1">•</span>
-                            <span><strong className="text-ink">{b.bold}</strong>{b.rest}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    {block.formulas && (
-                      <div className="flex flex-wrap gap-3 mt-3">
-                        {block.formulas.map((f, j) => (
-                          <div key={j} className="formula-card flex-1 min-w-[160px] text-center">
-                            <p className="text-lg font-semibold">{f.formula}</p>
-                            <p className="text-xs text-accent/70 mt-1 not-italic" style={{ fontStyle: "normal", fontFamily: "Inter" }}>{f.label}</p>
-                          </div>
-                        ))}
+              {chapter.id === "c1" ? (
+                NOTES_CONTENT.map((block, i) => {
+                  if (block.type === "heading") return (
+                    <h1 key={i} className="text-3xl font-bold text-accent mb-6">{block.text}</h1>
+                  );
+                  if (block.type === "section") return (
+                    <div key={i} className="mb-6">
+                      <h2 className="text-lg font-semibold text-ink mb-2">{block.number}. {block.title}</h2>
+                      {block.content && <p className="text-sm text-ink-secondary leading-relaxed">{block.content}</p>}
+                      {block.bullets && (
+                        <ul className="mt-2 space-y-1">
+                          {block.bullets.map((b, j) => (
+                            <li key={j} className="text-sm text-ink-secondary flex gap-2">
+                              <span className="text-accent mt-1">•</span>
+                              <span><strong className="text-ink">{b.bold}</strong>{b.rest}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {block.formulas && (
+                        <div className="flex flex-wrap gap-3 mt-3">
+                          {block.formulas.map((f, j) => (
+                            <div key={j} className="formula-card flex-1 min-w-[160px] text-center">
+                              <p className="text-lg font-semibold">{f.formula}</p>
+                              <p className="text-xs text-accent/70 mt-1 not-italic" style={{ fontStyle: "normal", fontFamily: "Inter" }}>{f.label}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                  if (block.type === "key-point") return (
+                    <div key={i} className="key-point mb-5 flex items-start gap-2">
+                      <span className="text-amber-500 mt-0.5">🔑</span>
+                      <p>{block.text}</p>
+                    </div>
+                  );
+                  if (block.type === "definition") return (
+                    <div key={i} className="definition-box mb-5">
+                      <p className="font-semibold mb-1">{block.title}</p>
+                      <p>{block.text}</p>
+                    </div>
+                  );
+                  return null;
+                })
+              ) : chapter.regions && chapter.regions.length > 0 ? (
+                <div className="space-y-6">
+                  {chapter.photoUrl && (
+                    <div className="mb-8 rounded-2xl overflow-hidden border border-paper-border shadow-sm bg-white">
+                      <div className="bg-paper-warm px-4 py-2.5 border-b border-paper-border flex justify-between items-center bg-paper-warm/50">
+                        <span className="text-xs font-bold text-ink-secondary uppercase tracking-wider flex items-center gap-1.5">
+                          <span>🖼️</span> Original Note Scan
+                        </span>
+                        <a
+                          href={chapter.photoUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-accent font-semibold hover:underline flex items-center gap-1"
+                        >
+                          View full image
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </a>
                       </div>
-                    )}
+                      <div className="p-4 flex justify-center bg-paper-warm/20">
+                        <img
+                          src={chapter.photoUrl}
+                          alt={chapter.name}
+                          className="max-h-80 object-contain rounded-xl shadow-md border border-paper-border hover:scale-[1.01] transition-all duration-300"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="border-b border-paper-border pb-4 mb-4">
+                    <h1 className="text-3xl font-extrabold text-ink mb-1">{chapter.name || "Study Notes"}</h1>
+                    <p className="text-xs text-ink-tertiary">
+                      ✨ AI Transcribed study notes from your uploaded image
+                    </p>
                   </div>
-                );
-                if (block.type === "key-point") return (
-                  <div key={i} className="key-point mb-5 flex items-start gap-2">
-                    <span className="text-amber-500 mt-0.5">🔑</span>
-                    <p>{block.text}</p>
+
+                  <div className="space-y-4">
+                    {chapter.regions.map((region, i) => {
+                      if (region.region_type === "equation") {
+                        return (
+                          <div key={region.id || i} className="formula-card p-5 my-4 text-center bg-accent/5 border border-accent/20 rounded-2xl shadow-sm">
+                            <p className="text-xl font-bold font-mono text-ink select-all">{region.raw_text}</p>
+                            <p className="text-[11px] text-accent/70 mt-1.5 font-medium tracking-wide uppercase">{region.label || "Formula / Equation"}</p>
+                          </div>
+                        );
+                      }
+                      if (region.region_type === "definition") {
+                        return (
+                          <div key={region.id || i} className="definition-box my-4 p-5 border-l-4 border-accent bg-accent/5 rounded-r-2xl shadow-sm">
+                            <p className="font-bold text-ink mb-1 flex items-center gap-1">
+                              <span>🔑</span>
+                              <span>{region.label || "Key Concept"}</span>
+                            </p>
+                            <p className="text-sm text-ink-secondary leading-relaxed">{region.raw_text}</p>
+                          </div>
+                        );
+                      }
+                      if (region.region_type === "list") {
+                        return (
+                          <div key={region.id || i} className="mb-5 bg-white p-5 rounded-2xl border border-paper-border shadow-sm">
+                            <h3 className="text-sm font-bold text-ink mb-2.5 flex items-center gap-1.5">
+                              <span className="text-accent">•</span>
+                              <span>{region.label || "Key Points"}</span>
+                            </h3>
+                            <ul className="space-y-2 text-sm text-ink-secondary list-none pl-1">
+                              {region.raw_text.split('\n').filter(line => line.trim()).map((line, idx) => (
+                                <li key={idx} className="flex gap-2 items-start leading-relaxed">
+                                  <span className="text-accent font-semibold mt-0.5">•</span>
+                                  <span>{line.replace(/^-\s*/, '').replace(/^\*\s*/, '')}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      }
+                      if (region.region_type === "diagram") {
+                        return (
+                          <div key={region.id || i} className="my-4 p-5 border border-paper-border bg-paper-warm/40 rounded-2xl shadow-sm">
+                            <p className="font-semibold text-purple-700 text-xs mb-2 uppercase tracking-wider flex items-center gap-1.5">
+                              <span>📊</span> Diagram Description: {region.label}
+                            </p>
+                            <p className="text-sm text-ink-secondary leading-relaxed italic">{region.raw_text}</p>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={region.id || i} className="mb-5">
+                          {region.label && <h3 className="text-sm font-bold text-ink mb-1.5">{region.label}</h3>}
+                          <p className="text-sm text-ink-secondary leading-relaxed">{region.raw_text}</p>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-                if (block.type === "definition") return (
-                  <div key={i} className="definition-box mb-5">
-                    <p className="font-semibold mb-1">{block.title}</p>
-                    <p>{block.text}</p>
+                </div>
+              ) : (
+                <div className="space-y-4 h-full flex flex-col">
+                  <div className="border-b border-paper-border pb-4">
+                    <input
+                      type="text"
+                      value={noteTitle}
+                      onChange={(e) => handleUpdateNoteTitle(e.target.value)}
+                      placeholder="Untitled Note"
+                      className="text-3xl font-extrabold text-ink bg-transparent outline-none w-full border-none focus:ring-0 p-0"
+                    />
+                    <p className="text-xs text-ink-tertiary mt-1">
+                      ✏️ Write your study notes below or scan a notebook photo
+                    </p>
                   </div>
-                );
-                return null;
-              })}
+                  <textarea
+                    value={noteText}
+                    onChange={(e) => handleUpdateNoteText(e.target.value)}
+                    placeholder="Start typing your study notes here..."
+                    className="flex-1 w-full min-h-[350px] resize-none bg-transparent text-sm text-ink leading-relaxed outline-none border-none focus:ring-0 p-0"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
