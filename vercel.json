@@ -18,5 +18,7 @@
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     }
-  ]
+  ],
+  "buildCommand": "VITE_API_URL=https://snapstudy-b63k.onrender.com/api npm run build",
+  "outputDirectory": "dist"
 }
