@@ -159,5 +159,14 @@ export const api = {
    * @returns {Promise<ApiResponse & { data?: RemediationResult }>}
    */
   remediate: (payload) => post("/remediate", payload),
+
+  /**
+   * Call 4: RAG Chat Assistant.
+   * @param {string} context - The notes content/transcriptions
+   * @param {any[]} messages - Conversation history
+   * @param {string} query - The student's current question
+   * @returns {Promise<ApiResponse & { data?: { answer: string, suggestions: string[] } }>}
+   */
+  chat: (context, messages, query) => post("/chat", { context, messages, query }),
 };
 

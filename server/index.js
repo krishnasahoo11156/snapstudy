@@ -7,6 +7,7 @@ import detectRouter from "./routes/detect.js";
 import generateRouter from "./routes/generate.js";
 import remediateRouter from "./routes/remediate.js";
 import ingestRouter from "./routes/ingest.js";
+import chatRouter from "./routes/chat.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -93,6 +94,7 @@ app.use("/api/ingest", ingestRouter); // Fast unified single-pass (2-3x speedup)
 app.use("/api/detect-regions", detectRouter);
 app.use("/api/generate-cards", generateRouter);
 app.use("/api/remediate", remediateRouter);
+app.use("/api/chat", chatRouter);
 
 // ── Health check (CP-1 gate) ────────────────────────────────────────────────
 app.get("/health", (_req, res) =>

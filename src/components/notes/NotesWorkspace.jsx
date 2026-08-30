@@ -5,6 +5,7 @@ import Breadcrumb from "../ui/Breadcrumb";
 import FlashcardsWorkspace from "./FlashcardsWorkspace";
 import QuizScreen from "../quiz/QuizScreen";
 import { generateMockCards, generateMockRegions } from "../../data/mock-data";
+import { api } from "../../lib/api-client";
 
 /** Shared formatting toolbar button */
 function ToolBtn({ label, title, onClick }) {
@@ -136,28 +137,75 @@ export default function NotesWorkspace() {
   const [aiLoading, setAiLoading] = useState(false);
   const [activeFormat, setActiveFormat] = useState([]);
 
-  const sendAiMessage = () => {
-    if (!aiInput.trim()) return;
-    const newMsg = { role: "user", text: aiInput };
+  const getContextText = () => {
+    if (chapter.id === "c1") {
+      return `Topic: Motion
+1. Introduction: Motion is the change in position of an object with respect to time. An object is said to be in motion if it changes its position relative to a reference point.
+Key Point: Motion is always relative, i.e., it depends on the observer.
+2. Types of Motion:
+- Rectilinear Motion: motion along a straight line
+- Circular Motion: motion along a circular path
+- Periodic Motion: motion that repeats after a fixed interval of time
+3. Important Formulae:
+- v = u + at (Final velocity)
+- s = ut + ½at² (Displacement)
+- v² = u² + 2as (Velocity-displacement)
+Uniform Motion: When an object covers equal distances in equal intervals of time, it is said to be in uniform motion.`;
+    }
+
+    if (chapter.regions && chapter.regions.length > 0) {
+      return chapter.regions.map(r => `[Region: ${r.label || r.region_type}]: ${r.raw_text}`).join("\n\n");
+    }
+
+    return `Title: ${chapter.name || "Untitled Note"}\nContent: ${chapter.notesText || ""}`;
+  };
+
+  const sendAiMessage = async (queryOverride = null) => {
+    const queryStr = (typeof queryOverride === "string" ? queryOverride : aiInput).trim();
+    if (!queryStr) return;
+
+    const newMsg = { role: "user", text: queryStr };
     setAiMessages((prev) => [...prev, newMsg]);
-    setAiInput("");
+    
+    if (typeof queryOverride !== "string") {
+      setAiInput("");
+    }
+    
     setAiLoading(true);
-    setTimeout(() => {
+
+    try {
+      const contextText = getContextText();
+      const chatHistory = aiMessages.map(m => ({ role: m.role, text: m.text }));
+      
+      const res = await api.chat(contextText, chatHistory, queryStr);
+      
+      if (res.success && res.data) {
+        setAiMessages((prev) => [
+          ...prev,
+          {
+            role: "ai",
+            text: res.data.answer,
+            context: `Based on your notes — ${chapter.name}`,
+            suggestions: res.data.suggestions || [],
+          },
+        ]);
+      } else {
+        throw new Error(res.error || "Failed to get response from server.");
+      }
+    } catch (err) {
+      console.error("[RAG Chat Error]", err);
       setAiMessages((prev) => [
         ...prev,
         {
           role: "ai",
-          text: `Based on your notes for ${chapter.name}: ${
-            aiInput.toLowerCase().includes("formula")
-              ? "The key formulas and steps are recorded in your flashcards."
-              : "Reviewing your notes and flashcards will help solidify these concepts!"
-          }`,
+          text: `Error: ${err instanceof Error ? err.message : String(err)}. Please try again.`,
           context: `Based on your notes — ${chapter.name}`,
-          suggestions: ["Explain key points", "Quiz me on this", "Show formulas"],
+          suggestions: ["Try again", "Explain key points"],
         },
       ]);
+    } finally {
       setAiLoading(false);
-    }, 1000);
+    }
   };
 
   const tab = activeTab || "notes";
@@ -417,7 +465,7 @@ export default function NotesWorkspace() {
                   <span className="text-xs text-emerald-600">Online</span>
                 </div>
               </div>
-              <button className="text-xs text-ink-tertiary hover:text-ink">Clear</button>
+              <button onClick={() => setAiMessages([])} className="text-xs text-ink-tertiary hover:text-ink">Clear</button>
             </div>
             <p className="text-xs text-ink-tertiary mt-2">Ask me anything about your notes.</p>
           </div>
@@ -448,7 +496,7 @@ export default function NotesWorkspace() {
                         {msg.suggestions.map((s, j) => (
                           <button
                             key={j}
-                            onClick={() => setAiInput(s)}
+                            onClick={() => sendAiMessage(s)}
                             className="block w-full text-left text-xs text-accent border border-accent/30 bg-accent/5 px-2.5 py-1.5 rounded-lg hover:bg-accent/10 transition-colors"
                           >
                             {s}

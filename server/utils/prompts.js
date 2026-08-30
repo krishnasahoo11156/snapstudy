@@ -160,3 +160,43 @@ Return ONLY valid JSON with no markdown fences:
   "referencesSource": true
 }`;
 }
+
+/**
+ * Call 4: RAG Chat Assistant
+ * Answers queries using strictly the notes context and formats response as JSON.
+ *
+ * @param {string} context
+ * @param {any[]} history
+ * @param {string} query
+ * @returns {string}
+ */
+export function ragChatPrompt(context, history, query) {
+  const formattedHistory = history && history.length > 0
+    ? history.map(h => `${h.role === "user" ? "Student" : "AI Assistant"}: ${h.text}`).join("\n")
+    : "No prior conversation.";
+
+  return `You are an encouraging, subject-aware tutor helping a student study their notes.
+Your task: Answer the student's question based strictly on the provided study notes context.
+
+STUDY NOTES CONTEXT:
+"""
+${context}
+"""
+
+CONVERSATION HISTORY:
+${formattedHistory}
+
+Latest Student Question: "${query}"
+
+Instructions:
+1. Answer the student's latest question using only information from the study notes context.
+2. If the answer cannot be found or derived from the study notes, reply politely that this information is not present in their study notes. Do not make up facts.
+3. Keep your response concise (2-4 sentences max), clear, and encouraging.
+4. Suggest exactly 2 or 3 relevant, interesting follow-up questions the student might ask next based on this response.
+5. You MUST return your output in JSON format with no markdown fences:
+{
+  "answer": "Your answer text here...",
+  "suggestions": ["Follow-up question 1?", "Follow-up question 2?"]
+}
+`;
+}
