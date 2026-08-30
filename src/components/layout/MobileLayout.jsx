@@ -21,7 +21,7 @@ export default function MobileLayout() {
     case "capture-file":
       return (
         <div className="flex flex-col min-h-screen bg-paper">
-          <CaptureScreen />
+          <CaptureScreen initialMode={page === "capture-file" ? "file" : "image"} />
         </div>
       );
     default:              return <LandingPage />;

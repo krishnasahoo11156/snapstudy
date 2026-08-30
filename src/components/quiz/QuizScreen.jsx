@@ -52,17 +52,16 @@ export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit
         userAnswer: correct ? card.back : "Need assistance / incorrect answer",
       },
     ];
-    setResponses(newResponses);
-
     if (!correct) {
-      // Find linked region from user notes
       const matchedRegion =
         effectiveRegions.find((r) => r.id === card.source_region_id) || effectiveRegions[0];
 
       setLoadingRemediation(true);
       try {
-        const cleanBase64 = photoUrl?.replace(/^data:image\/\w+;base64,/, "") || "";
-        const remRes = await api.remediate({
+        const isDataUrl = photoUrl && photoUrl.startsWith("data:image");
+        const cleanBase64 = isDataUrl ? photoUrl.replace(/^data:image\/\w+;base64,/, "") : null;
+
+        const remPromise = api.remediate({
           wrongAnswer: "Need help reviewing this concept",
           correctAnswer: card.back,
           regionContext: matchedRegion,
@@ -71,8 +70,25 @@ export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit
           box_2d: matchedRegion?.box_2d,
         });
 
+        // 4.5s safety timeout so the student is never stuck waiting
+        const timeoutPromise = new Promise((resolve) =>
+          setTimeout(() => resolve({ success: false, timeout: true }), 4500)
+        );
+
+        const remRes = await Promise.race([remPromise, timeoutPromise]);
+
         const remediationData =
-          remRes.success && remRes.data ? remRes.data : generateMockRemediation();
+          remRes && remRes.success && remRes.data
+            ? remRes.data
+            : {
+                explanation: `Review this concept from your notes: "${card.back}". Pay special attention to the key definitions and formulas highlighted in this section.`,
+                hints: [
+                  "Check the highlighted section on your note sheet.",
+                  "Review the key term and its definition.",
+                  "Connect this concept to the examples in your notes.",
+                ],
+                referencesSource: true,
+              };
 
         setShowRemediation({
           card,
@@ -81,7 +97,7 @@ export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit
           remediation: remediationData,
         });
       } catch (err) {
-        console.warn("[remediation error, using fallback]", err);
+        console.warn("[remediation fallback]", err);
         setShowRemediation({
           card,
           region: matchedRegion,
