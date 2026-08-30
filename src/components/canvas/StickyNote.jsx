@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { StudyIcon, FolderOpen, Pencil, Copy, Palette, Trash2 } from "../ui/Icons";
 
 /**
  * Draggable sticky note that looks like a physical Post-it.
@@ -106,11 +107,11 @@ export default function StickyNote({
           onMouseLeave={closeContext}
         >
           {[
-            { label: "Open folder", icon: "📂", action: () => { onClick && onClick(folder); closeContext(); } },
-            { label: "Rename", icon: "✏️", action: () => { setRenaming(true); closeContext(); } },
-            { label: "Duplicate", icon: "⧉", action: () => { onDuplicate && onDuplicate(folder.id); closeContext(); } },
-            { label: "Change color", icon: "🎨", sub: true },
-            { label: "Delete", icon: "🗑️", action: () => { onDelete && onDelete(folder.id); closeContext(); }, danger: true },
+            { label: "Open folder", icon: <FolderOpen className="w-4 h-4" />, action: () => { onClick && onClick(folder); closeContext(); } },
+            { label: "Rename", icon: <Pencil className="w-4 h-4" />, action: () => { setRenaming(true); closeContext(); } },
+            { label: "Duplicate", icon: <Copy className="w-4 h-4" />, action: () => { onDuplicate && onDuplicate(folder.id); closeContext(); } },
+            { label: "Change color", icon: <Palette className="w-4 h-4" />, sub: true },
+            { label: "Delete", icon: <Trash2 className="w-4 h-4" />, action: () => { onDelete && onDelete(folder.id); closeContext(); }, danger: true },
           ].map((item, i) => (
             <div key={i}>
               {i === 3 && <div className="h-px bg-paper-border my-1" />}
@@ -133,7 +134,7 @@ export default function StickyNote({
                   onClick={item.action}
                   className={`w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 hover:bg-paper-warm rounded transition-colors ${item.danger ? "text-red-600" : "text-ink"}`}
                 >
-                  <span>{item.icon}</span>
+                  <span className="shrink-0">{item.icon}</span>
                   {item.label}
                 </button>
               )}
@@ -186,9 +187,9 @@ export default function StickyNote({
           />
         ) : (
           <>
-            {/* Icon */}
-            <div className="flex justify-center mb-2">
-              <span className="text-2xl">{folder.icon}</span>
+            {/* SVG Icon */}
+            <div className="flex justify-center mb-2" style={{ color: color.text }}>
+              <StudyIcon name={folder.icon} className="w-7 h-7" />
             </div>
             {/* Name */}
             <p

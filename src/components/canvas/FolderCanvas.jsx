@@ -3,17 +3,29 @@ import { useNav } from "../../context/NavContext";
 import StickyNote from "./StickyNote";
 import Header from "../ui/Header";
 import Breadcrumb from "../ui/Breadcrumb";
+import {
+  FolderPlus,
+  Image as ImageIcon,
+  FileText,
+  PenTool,
+  StudyIcon,
+  Hand,
+  Move,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+} from "../ui/Icons";
 
 const SCIENCE_CHAPTERS = [
-  { id: "c1", name: "Chapter 1\nMotion", icon: "🏃", itemCount: 4, lastStudied: "Today", color: "yellow", decoration: "tape", rotation: -2, x: 200, y: 120, zIndex: 1 },
-  { id: "c2", name: "Chapter 2\nLaws of Motion", icon: "⚡", itemCount: 2, lastStudied: "Yesterday", color: "pink", decoration: "pin", pinColor: "#DC2626", rotation: 1.5, x: 390, y: 110, zIndex: 1 },
-  { id: "c3", name: "Chapter 3\nGravitation", icon: "🌍", itemCount: 1, lastStudied: "3 days ago", color: "blue", decoration: "tape-sideways", rotation: -1, x: 580, y: 125, zIndex: 1 },
-  { id: "c4", name: "Formula Sheet", icon: "📐", itemCount: 1, lastStudied: "1 week ago", color: "green", decoration: "tape", rotation: 2, x: 200, y: 320, zIndex: 1 },
+  { id: "c1", name: "Chapter 1\nMotion", icon: "motion", itemCount: 4, lastStudied: "Today", color: "yellow", decoration: "tape", rotation: -2, x: 200, y: 120, zIndex: 1 },
+  { id: "c2", name: "Chapter 2\nLaws of Motion", icon: "lightning", itemCount: 2, lastStudied: "Yesterday", color: "pink", decoration: "pin", pinColor: "#DC2626", rotation: 1.5, x: 390, y: 110, zIndex: 1 },
+  { id: "c3", name: "Chapter 3\nGravitation", icon: "globe", itemCount: 1, lastStudied: "3 days ago", color: "blue", decoration: "tape-sideways", rotation: -1, x: 580, y: 125, zIndex: 1 },
+  { id: "c4", name: "Formula Sheet", icon: "math", itemCount: 1, lastStudied: "1 week ago", color: "green", decoration: "tape", rotation: 2, x: 200, y: 320, zIndex: 1 },
 ];
 
 export default function FolderCanvas() {
   const { navigate, activeFolder, breadcrumb } = useNav();
-  const folder = activeFolder || { id: "f1", name: "Science", icon: "⚛️" };
+  const folder = activeFolder || { id: "f1", name: "Science", icon: "science" };
   const storageKey = `snapstudy_chapters_${folder.id}`;
 
   const [chapters, setChapters] = useState(() => {
@@ -29,7 +41,7 @@ export default function FolderCanvas() {
         {
           id: `c_${folder.id}`,
           name: folder.name,
-          icon: "📸",
+          icon: "camera",
           itemCount: folder.cards.length,
           lastStudied: "Today",
           color: folder.color || "yellow",
@@ -97,7 +109,7 @@ export default function FolderCanvas() {
       {
         id: `c${Date.now()}`,
         name: "New Chapter",
-        icon: "📌",
+        icon: "pin",
         itemCount: 0,
         lastStudied: "Never",
         color: ["yellow", "pink", "blue", "green", "lavender", "mint", "peach"][prev.length % 7],
@@ -124,9 +136,9 @@ export default function FolderCanvas() {
               <Breadcrumb items={bc.slice(0, -1).concat({ label: bc[bc.length - 1]?.label })} />
             </div>
             <div className="flex items-center gap-3 mt-2">
-              <h1 className="font-bold text-3xl text-ink flex items-center gap-2">
-                {folder.name}
-                <span className="text-2xl">{folder.icon}</span>
+              <h1 className="font-bold text-3xl text-ink flex items-center gap-2.5">
+                <span>{folder.name}</span>
+                <StudyIcon name={folder.icon} className="w-6 h-6 text-accent shrink-0" />
               </h1>
               <button
                 onClick={handleCreateChapter}
@@ -158,18 +170,18 @@ export default function FolderCanvas() {
             {showCreate && (
               <div className="absolute right-0 top-11 bg-white rounded-2xl shadow-panel border border-paper-border p-2 w-44 animate-slide-down">
                 {[
-                  { icon: "📁", label: "New Chapter", action: handleCreateChapter },
-                  { icon: "🖼️", label: "Upload Image", action: () => navigate("capture-image") },
-                  { icon: "📄", label: "Upload File", action: () => navigate("capture-file") },
-                  { icon: "📝", label: "Create Note", action: () => navigate("notes", { chapter: { id: "new", name: "New Note" }, breadcrumb: [...bc, { label: "New Note" }] }) },
+                  { icon: <FolderPlus className="w-4 h-4 text-blue-500" />, label: "New Chapter", action: handleCreateChapter },
+                  { icon: <ImageIcon className="w-4 h-4 text-emerald-500" />, label: "Upload Image", action: () => navigate("capture-image") },
+                  { icon: <FileText className="w-4 h-4 text-amber-500" />, label: "Upload File", action: () => navigate("capture-file") },
+                  { icon: <PenTool className="w-4 h-4 text-indigo-500" />, label: "Create Note", action: () => navigate("notes", { chapter: { id: "new", name: "New Note" }, breadcrumb: [...bc, { label: "New Note" }] }) },
                 ].map((item, i) => (
                   <button
                     key={i}
                     onClick={() => { setShowCreate(false); item.action(); }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-ink hover:bg-paper-warm transition-colors text-left"
                   >
-                    <span>{item.icon}</span>
-                    {item.label}
+                    <span className="shrink-0">{item.icon}</span>
+                    <span>{item.label}</span>
                   </button>
                 ))}
               </div>
@@ -208,8 +220,16 @@ export default function FolderCanvas() {
 
         {/* Canvas toolbar */}
         <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-1 bg-white rounded-2xl shadow-panel border border-paper-border p-1.5">
-          {["✋","⊹","⊕","⊖","⛶"].map((icon, i) => (
-            <button key={i} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-paper-warm text-ink-secondary text-sm transition-colors">{icon}</button>
+          {[
+            { icon: <Hand className="w-4 h-4" />, title: "Pan" },
+            { icon: <Move className="w-4 h-4" />, title: "Select" },
+            { icon: <ZoomIn className="w-4 h-4" />, title: "Zoom In" },
+            { icon: <ZoomOut className="w-4 h-4" />, title: "Zoom Out" },
+            { icon: <Maximize2 className="w-4 h-4" />, title: "Fit to screen" },
+          ].map((item, i) => (
+            <button key={i} title={item.title} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-paper-warm text-ink-secondary text-sm transition-colors">
+              {item.icon}
+            </button>
           ))}
         </div>
       </div>

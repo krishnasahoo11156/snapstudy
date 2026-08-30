@@ -1,4 +1,5 @@
 import RegionOverlay from "../region-overlay/RegionOverlay";
+import { Search, MapPin, Lightbulb } from "../ui/Icons";
 
 /**
  * RemediationScreen — the centerpiece of SnapStudy.
@@ -26,7 +27,7 @@ export default function RemediationScreen({
       {/* Header banner */}
       <div className="flex items-center justify-between border-b border-amber-200 bg-amber-50 px-6 py-3 text-amber-800 text-xs font-semibold">
         <span className="flex items-center gap-2">
-          <span>🔍</span>
+          <Search className="w-4 h-4 text-amber-700" />
           <span>Grounded AI Note Remediation — Reviewing your source notes</span>
         </span>
         <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] text-amber-800 border border-amber-300">
@@ -40,7 +41,7 @@ export default function RemediationScreen({
         <div className="flex flex-col bg-paper-warm p-6 lg:w-1/2 lg:border-r lg:border-paper-border space-y-4">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink">
-              <span>📍</span>
+              <MapPin className="w-4 h-4 text-accent" />
               <span>Exact Location in Your Notes</span>
             </span>
             <span className="rounded-lg bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
@@ -117,7 +118,7 @@ export default function RemediationScreen({
                 <ul className="space-y-2">
                   {remediation.hints.map((hint, i) => (
                     <li key={i} className="flex items-start gap-2.5 rounded-xl bg-accent/5 border border-accent/20 px-3 py-2.5">
-                      <span className="text-accent shrink-0">💡</span>
+                      <Lightbulb className="w-4 h-4 text-accent shrink-0 mt-0.5" />
                       <p className="text-xs text-ink-secondary">{hint}</p>
                     </li>
                   ))}

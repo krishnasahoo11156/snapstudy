@@ -47,21 +47,28 @@ export default function LandingPage() {
         <div className="grid grid-cols-2 gap-16 items-center">
           {/* Left: Copy */}
           <div>
-            <h1 className="text-6xl font-bold text-ink leading-[1.08] tracking-tight mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-accent/10 text-accent rounded-full text-xs font-semibold mb-6">
+              <Sparkles className="w-3.5 h-3.5 text-accent" />
+              <span>Smart Study Assistant</span>
+            </div>
+            <h1 className="text-5xl font-bold text-ink leading-tight tracking-tight mb-6">
               Your notes.<br />
               Understood.<br />
               <span className="text-accent">Forever.</span>
             </h1>
-            <p className="text-base text-ink-secondary leading-relaxed mb-8 max-w-sm">
-              Snap handwritten notes, turn them into smart flashcards, get explanations grounded in your own notes — not generic answers.
+            <p className="text-lg text-ink-secondary leading-relaxed mb-8">
+              Snap a photo or upload your notes. StudySnap creates smart flashcards that connect directly back to where you wrote them.
             </p>
-            <div className="flex items-center gap-3 mb-10">
+            <div className="flex items-center gap-4 mb-10">
               <button
                 id="landing-cta-primary"
-                onClick={() => navigate("canvas")}
-                className="flex items-center gap-2 bg-ink text-white px-6 py-3.5 rounded-2xl text-sm font-semibold hover:bg-ink/80 transition-colors shadow-sm"
+                onClick={() => navigate("capture-image")}
+                className="px-7 py-3.5 bg-accent text-white font-semibold rounded-2xl hover:bg-accent-hover transition-all shadow-md hover:shadow-lg flex items-center gap-2"
               >
-                Get started for free →
+                <span>Try it now — it's free</span>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                </svg>
               </button>
               <button
                 id="landing-cta-secondary"
@@ -72,7 +79,7 @@ export default function LandingPage() {
               </button>
             </div>
             <p className="text-xs text-ink-tertiary flex items-center gap-1.5">
-              <span className="text-accent">✦</span>
+              <Sparkles className="w-3.5 h-3.5 text-accent" />
               Loved by students at 1000+ schools &amp; colleges
             </p>
           </div>
@@ -136,12 +143,12 @@ export default function LandingPage() {
         {/* Trust badges */}
         <div className="flex items-center gap-8 mt-16 pt-8 border-t border-paper-border">
           {[
-            { icon: "✦", label: "Google Gemini" },
-            { icon: "🔥", label: "Firebase" },
-            { icon: "📱", label: "PWA Ready" },
+            { icon: <Sparkles className="w-4 h-4 text-accent" />, label: "Google Gemini" },
+            { icon: <Flame className="w-4 h-4 text-orange-500 fill-orange-500" />, label: "Firebase" },
+            { icon: <Smartphone className="w-4 h-4 text-blue-500" />, label: "PWA Ready" },
           ].map((b, i) => (
             <div key={i} className="flex items-center gap-2 text-sm text-ink-tertiary">
-              <span>{b.icon}</span>
+              <span className="shrink-0">{b.icon}</span>
               <span>{b.label}</span>
             </div>
           ))}
@@ -154,14 +161,14 @@ export default function LandingPage() {
           <h2 className="text-3xl font-bold text-ink text-center mb-16">Everything you need to study smarter</h2>
           <div className="grid grid-cols-5 gap-8">
             {[
-              { icon: "📱", title: "Snap & Organize", desc: "Capture notes or upload files. We'll keep everything organized for you." },
-              { icon: "🧠", title: "Smart Understanding", desc: "AI reads your notes the way you wrote them — with full context." },
-              { icon: "🃏", title: "Flashcards that Click", desc: "Get type-aware flashcards made from your exact notes." },
-              { icon: "💬", title: "Grounded Explanations", desc: "Wrong answer? Get help using your own notes, not generic explanations." },
-              { icon: "✈️", title: "Study Anywhere", desc: "Works offline. Syncs across devices. Your notes, always with you." },
+              { icon: <Camera className="w-6 h-6 text-accent" />, title: "Snap & Organize", desc: "Capture notes or upload files. We'll keep everything organized for you." },
+              { icon: <Brain className="w-6 h-6 text-purple-600" />, title: "Smart Understanding", desc: "AI reads your notes the way you wrote them — with full context." },
+              { icon: <Layers className="w-6 h-6 text-emerald-600" />, title: "Flashcards that Click", desc: "Get type-aware flashcards made from your exact notes." },
+              { icon: <MessageSquare className="w-6 h-6 text-blue-600" />, title: "Grounded Explanations", desc: "Wrong answer? Get help using your own notes, not generic explanations." },
+              { icon: <Compass className="w-6 h-6 text-amber-600" />, title: "Study Anywhere", desc: "Works offline. Syncs across devices. Your notes, always with you." },
             ].map((feat, i) => (
               <div key={i} className="text-center">
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-white border border-paper-border flex items-center justify-center text-2xl mb-4 shadow-sm">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-white border border-paper-border flex items-center justify-center mb-4 shadow-sm">
                   {feat.icon}
                 </div>
                 <h3 className="text-sm font-semibold text-ink mb-2">{feat.title}</h3>

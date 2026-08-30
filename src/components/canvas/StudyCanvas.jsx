@@ -4,12 +4,28 @@ import { getPhotoRecords, deletePhotoRecord } from "../../lib/firestore";
 import { useNav } from "../../context/NavContext";
 import StickyNote from "./StickyNote";
 import Header from "../ui/Header";
+import {
+  FolderPlus,
+  Image as ImageIcon,
+  FileText,
+  PenTool,
+  Layers,
+  HelpCircle,
+  Flame,
+  Sparkles,
+  Hand,
+  Move,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Folder,
+} from "../ui/Icons";
 
 const DEFAULT_STARTER_FOLDERS = [
-  { id: "f1", name: "Science", icon: "⚛️", itemCount: 4, lastStudied: "Today", color: "yellow", decoration: "tape", rotation: -2, x: 210, y: 90, zIndex: 1 },
-  { id: "f2", name: "Mathematics", icon: "√x", itemCount: 2, lastStudied: "Yesterday", color: "pink", decoration: "pin", pinColor: "#DC2626", rotation: 1.5, x: 400, y: 80, zIndex: 1 },
-  { id: "f3", name: "Computer Science", icon: "</>", itemCount: 3, lastStudied: "3 days ago", color: "blue", decoration: "tape-sideways", rotation: -1, x: 590, y: 95, zIndex: 1 },
-  { id: "f4", name: "Physics & Notes", icon: "📝", itemCount: 1, lastStudied: "Recently", color: "green", decoration: "pin", pinColor: "#16A34A", rotation: 2, x: 780, y: 85, zIndex: 1 },
+  { id: "f1", name: "Science", icon: "science", itemCount: 4, lastStudied: "Today", color: "yellow", decoration: "tape", rotation: -2, x: 210, y: 90, zIndex: 1 },
+  { id: "f2", name: "Mathematics", icon: "math", itemCount: 2, lastStudied: "Yesterday", color: "pink", decoration: "pin", pinColor: "#DC2626", rotation: 1.5, x: 400, y: 80, zIndex: 1 },
+  { id: "f3", name: "Computer Science", icon: "code", itemCount: 3, lastStudied: "3 days ago", color: "blue", decoration: "tape-sideways", rotation: -1, x: 590, y: 95, zIndex: 1 },
+  { id: "f4", name: "Physics & Notes", icon: "notes", itemCount: 1, lastStudied: "Recently", color: "green", decoration: "pin", pinColor: "#16A34A", rotation: 2, x: 780, y: 85, zIndex: 1 },
 ];
 
 function mergeScannedNotesWithFolders(baseFolders, records) {
@@ -25,7 +41,7 @@ function mergeScannedNotesWithFolders(baseFolders, records) {
         name: rec.regions?.[0]?.label
           ? rec.regions[0].label
           : (rec.fileName || `Note Scan #${records.length - idx}`),
-        icon: "📸",
+        icon: "camera",
         itemCount: rec.cards?.length || 1,
         lastStudied: "Just now",
         color: ["yellow", "mint", "peach", "lavender", "blue"][idx % 5],
@@ -72,7 +88,7 @@ export default function StudyCanvas() {
   const [createOpen, setCreateOpen] = useState(false);
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
-  const [newFolderIcon, setNewFolderIcon] = useState("📁");
+  const [newFolderIcon, setNewFolderIcon] = useState("folder");
   const canvasRef = useRef(null);
 
   // Reload user folders & sync with Supabase / Firestore in background
@@ -214,7 +230,7 @@ export default function StudyCanvas() {
       },
     ]);
     setNewFolderName("");
-    setNewFolderIcon("📁");
+    setNewFolderIcon("folder");
     setShowNewFolderModal(false);
     setCreateOpen(false);
   };
@@ -229,9 +245,9 @@ export default function StudyCanvas() {
 
           {/* Canvas title area */}
           <div className="absolute top-8 left-8 z-10 pointer-events-none">
-            <h1 className="font-hand text-4xl font-bold text-ink mb-1" style={{ fontFamily: "'Caveat', cursive" }}>
-              My Study Canvas
-              <span className="inline-block ml-2 text-2xl animate-pulse-slow">✦</span>
+            <h1 className="font-hand text-4xl font-bold text-ink mb-1 flex items-center gap-2" style={{ fontFamily: "'Caveat', cursive" }}>
+              <span>My Study Canvas</span>
+              <Sparkles className="w-5 h-5 text-accent animate-pulse" />
             </h1>
             <p className="text-sm text-ink-secondary font-medium" style={{ fontFamily: "'Caveat', cursive", fontSize: 16 }}>
               Organize your study space, your way.
@@ -276,7 +292,7 @@ export default function StudyCanvas() {
           <div className="absolute bottom-6 left-6 bg-white rounded-2xl shadow-card border border-paper-border p-4 w-52 animate-fade-in">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <span className="text-xl">🔥</span>
+                <Flame className="w-6 h-6 text-orange-500 fill-orange-500 shrink-0" />
                 <div>
                   <p className="text-xs font-semibold text-ink-secondary">Study Streak</p>
                   <p className="text-2xl font-bold text-ink leading-none">7 <span className="text-sm font-medium text-ink-secondary">days</span></p>
@@ -309,13 +325,15 @@ export default function StudyCanvas() {
           </div>
 
           {/* Tip of the day widget */}
-          <div className="absolute bottom-6 right-20 bg-white rounded-2xl shadow-card border border-paper-border p-4 w-56 animate-fade-in">
+          <div className="absolute bottom-6 right-20 bg-white rounded-2xl shadow-card border border-paper-border p-4 w-56 animate-fade-in relative overflow-hidden">
             <p className="text-xs font-semibold text-ink-secondary mb-2">Tip of the day</p>
             <p className="text-sm text-ink leading-relaxed">
               "The more you review,<br/>the more you remember."
             </p>
-            {/* Decorative leaf */}
-            <div className="absolute bottom-3 right-3 text-2xl opacity-20 rotate-12">🌿</div>
+            {/* Decorative leaf icon */}
+            <div className="absolute bottom-2 right-2 text-accent/20">
+              <Sparkles className="w-8 h-8" />
+            </div>
           </div>
         </div>
 
@@ -338,32 +356,32 @@ export default function StudyCanvas() {
             {(createOpen || true) && (
               <div className="space-y-0.5">
                 {[
-                  { icon: "📁", label: "New Folder", action: () => setShowNewFolderModal(true) },
-                  { icon: "🖼️", label: "Upload Image", action: () => navigate("capture-image") },
-                  { icon: "📄", label: "Upload File", action: () => navigate("capture-file") },
-                  { icon: "📝", label: "Create Note", action: () => navigate("notes", { chapter: { id: "new", name: "New Note" }, breadcrumb: [{ label: "My Space", page: "canvas" }, { label: "New Note" }] }) },
+                  { icon: <FolderPlus className="w-4 h-4 text-blue-500" />, label: "New Folder", action: () => setShowNewFolderModal(true) },
+                  { icon: <ImageIcon className="w-4 h-4 text-emerald-500" />, label: "Upload Image", action: () => navigate("capture-image") },
+                  { icon: <FileText className="w-4 h-4 text-amber-500" />, label: "Upload File", action: () => navigate("capture-file") },
+                  { icon: <PenTool className="w-4 h-4 text-indigo-500" />, label: "Create Note", action: () => navigate("notes", { chapter: { id: "new", name: "New Note" }, breadcrumb: [{ label: "My Space", page: "canvas" }, { label: "New Note" }] }) },
                 ].map((item, i) => (
                   <button
                     key={i}
                     onClick={item.action}
                     className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl text-sm text-ink hover:bg-paper-warm transition-colors text-left"
                   >
-                    <span className="text-base">{item.icon}</span>
-                    {item.label}
+                    <span className="shrink-0">{item.icon}</span>
+                    <span>{item.label}</span>
                   </button>
                 ))}
                 <div className="h-px bg-paper-border my-1.5" />
                 {[
-                  { icon: "🃏", label: "New Flashcards", action: () => navigate("notes", { activeTab: "flashcards" }) },
-                  { icon: "❓", label: "New Quiz", action: () => navigate("notes", { activeTab: "quizzes" }) },
+                  { icon: <Layers className="w-4 h-4 text-purple-500" />, label: "New Flashcards", action: () => navigate("notes", { activeTab: "flashcards" }) },
+                  { icon: <HelpCircle className="w-4 h-4 text-rose-500" />, label: "New Quiz", action: () => navigate("notes", { activeTab: "quizzes" }) },
                 ].map((item, i) => (
                   <button
                     key={i}
                     onClick={item.action}
                     className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl text-sm text-ink hover:bg-paper-warm transition-colors text-left"
                   >
-                    <span className="text-base">{item.icon}</span>
-                    {item.label}
+                    <span className="shrink-0">{item.icon}</span>
+                    <span>{item.label}</span>
                   </button>
                 ))}
               </div>
@@ -374,11 +392,11 @@ export default function StudyCanvas() {
         {/* Canvas toolbar (right edge) */}
         <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-1 bg-white rounded-2xl shadow-panel border border-paper-border p-1.5">
           {[
-            { icon: "✋", title: "Pan" },
-            { icon: "⊹", title: "Select" },
-            { icon: "⊕", title: "Zoom In" },
-            { icon: "⊖", title: "Zoom Out" },
-            { icon: "⛶", title: "Fit to screen" },
+            { icon: <Hand className="w-4 h-4" />, title: "Pan" },
+            { icon: <Move className="w-4 h-4" />, title: "Select" },
+            { icon: <ZoomIn className="w-4 h-4" />, title: "Zoom In" },
+            { icon: <ZoomOut className="w-4 h-4" />, title: "Zoom Out" },
+            { icon: <Maximize2 className="w-4 h-4" />, title: "Fit to screen" },
           ].map((tool, i) => (
             <button
               key={i}
@@ -397,13 +415,9 @@ export default function StudyCanvas() {
           <div className="bg-white rounded-2xl shadow-panel border border-paper-border p-6 w-80 animate-scale-in">
             <h3 className="font-semibold text-ink mb-4">New Folder</h3>
             <div className="flex gap-3 mb-4">
-              <input
-                type="text"
-                placeholder="Icon (emoji)"
-                value={newFolderIcon}
-                onChange={e => setNewFolderIcon(e.target.value)}
-                className="w-16 text-center border border-paper-border rounded-xl px-2 py-2.5 text-lg outline-none focus:border-accent"
-              />
+              <div className="w-12 h-11 flex items-center justify-center border border-paper-border rounded-xl bg-paper-warm text-accent">
+                <Folder className="w-6 h-6" />
+              </div>
               <input
                 autoFocus
                 type="text"

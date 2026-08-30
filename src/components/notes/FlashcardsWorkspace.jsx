@@ -48,10 +48,13 @@ export default function FlashcardsWorkspace({ cards, chapter }) {
   return (
     <div className={`flex-1 flex flex-col items-center justify-center bg-paper-warm px-6 py-8 ${fullscreen ? "fixed inset-0 z-50 bg-white" : ""}`}>
       {/* Card counter */}
-      <p className="text-xs font-semibold text-ink-tertiary tracking-widest uppercase mb-6">
-        CARD {current + 1} / {total}
+      <p className="text-xs font-semibold text-ink-tertiary tracking-widest uppercase mb-6 flex items-center justify-center">
+        <span>CARD {current + 1} / {total}</span>
         {difficult.has(card.id) && (
-          <span className="ml-3 text-red-500 font-medium">🔴 Marked Difficult</span>
+          <span className="inline-flex items-center gap-1.5 ml-3 text-red-500 font-medium normal-case text-xs">
+            <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+            Marked Difficult
+          </span>
         )}
       </p>
 

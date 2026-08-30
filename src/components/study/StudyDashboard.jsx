@@ -3,6 +3,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { getPhotoRecords, deletePhotoRecord } from "../../lib/firestore";
 import { generateMockCards, generateMockRegions } from "../../data/mock-data";
 import QuizScreen from "../quiz/QuizScreen";
+import { StudyIcon, BookOpen } from "../ui/Icons";
 
 const LOCAL_STORAGE_DELETED_DEFAULTS = "snapstudy_deleted_default_decks";
 
@@ -34,9 +35,9 @@ function ProgressRing({ percent, size = 48, stroke = 4 }) {
 }
 
 const DEFAULT_DECKS = [
-  { id: "deck_0", title: "Mathematics — Quadratic Equations", subject: "Math", emoji: "📐", cardCount: 4, masteredCount: 1, lastStudied: "Today", color: "from-blue-600 to-violet-600", cards: generateMockCards().cards, regions: generateMockRegions().regions },
-  { id: "deck_1", title: "Physics — Newton's Laws", subject: "Physics", emoji: "⚛️", cardCount: 8, masteredCount: 5, lastStudied: "Yesterday", color: "from-emerald-600 to-teal-600", cards: generateMockCards().cards, regions: generateMockRegions().regions },
-  { id: "deck_2", title: "Chemistry — Periodic Table", subject: "Chem", emoji: "🧪", cardCount: 12, masteredCount: 3, lastStudied: "2 days ago", color: "from-orange-600 to-rose-600", cards: generateMockCards().cards, regions: generateMockRegions().regions },
+  { id: "deck_0", title: "Mathematics — Quadratic Equations", subject: "Math", emoji: "math", cardCount: 4, masteredCount: 1, lastStudied: "Today", color: "from-blue-600 to-violet-600", cards: generateMockCards().cards, regions: generateMockRegions().regions },
+  { id: "deck_1", title: "Physics — Newton's Laws", subject: "Physics", emoji: "atom", cardCount: 8, masteredCount: 5, lastStudied: "Yesterday", color: "from-emerald-600 to-teal-600", cards: generateMockCards().cards, regions: generateMockRegions().regions },
+  { id: "deck_2", title: "Chemistry — Periodic Table", subject: "Chem", emoji: "flask", cardCount: 12, masteredCount: 3, lastStudied: "2 days ago", color: "from-orange-600 to-rose-600", cards: generateMockCards().cards, regions: generateMockRegions().regions },
 ];
 
 export default function StudyDashboard() {
@@ -59,7 +60,7 @@ export default function StudyDashboard() {
           isUserDeck: true,
           title: rec.regions?.[0]?.label ? `Notes: ${rec.regions[0].label}` : `Scanned Note Deck #${records.length - idx}`,
           subject: rec.regions?.[0]?.region_type?.toUpperCase() || "NOTES",
-          emoji: "📝",
+          emoji: "notes",
           cardCount: rec.cards?.length || 0,
           masteredCount: 0,
           lastStudied: "Just now",
@@ -154,7 +155,7 @@ export default function StudyDashboard() {
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-widest text-ink-tertiary">Your Decks</h3>
         {decks.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-center rounded-3xl border border-dashed border-paper-border bg-white shadow-card">
-            <span className="text-4xl mb-3">📚</span>
+            <BookOpen className="w-10 h-10 text-accent mb-3" />
             <h4 className="text-lg font-bold text-ink">No note decks yet</h4>
             <p className="text-xs text-ink-secondary mt-1 max-w-sm">
               Use the Capture tab to scan handwritten notes and generate instant flashcards.
@@ -197,9 +198,9 @@ export default function StudyDashboard() {
                       <>
                         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:12px_12px]" />
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-4xl select-none filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)] transform group-hover:scale-110 transition-transform duration-200">
-                            {deck.emoji}
-                          </span>
+                          <div className="text-white transform group-hover:scale-110 transition-transform duration-200">
+                            <StudyIcon name={deck.emoji} className="w-12 h-12 text-white/90 drop-shadow-md" />
+                          </div>
                         </div>
                       </>
                     )}

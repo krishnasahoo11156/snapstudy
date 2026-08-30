@@ -6,6 +6,14 @@ import FlashcardsWorkspace from "./FlashcardsWorkspace";
 import QuizScreen from "../quiz/QuizScreen";
 import { generateMockCards, generateMockRegions } from "../../data/mock-data";
 import { api } from "../../lib/api-client";
+import {
+  PenTool,
+  KeyRound,
+  Image as ImageIcon,
+  Sparkles,
+  BarChart3,
+  Pencil,
+} from "../ui/Icons";
 
 /** Shared formatting toolbar button */
 function ToolBtn({ label, title, onClick }) {
@@ -284,7 +292,7 @@ Uniform Motion: When an object covers equal distances in equal intervals of time
             <div className="w-px h-5 bg-paper-border mx-1" />
             {/* Other tools */}
             <ToolBtn label={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>} title="Link" onClick={() => {}} />
-            <ToolBtn label="🖊" title="Highlight" onClick={() => {}} />
+            <ToolBtn label={<PenTool className="w-3.5 h-3.5" />} title="Highlight" onClick={() => {}} />
             <ToolBtn label="A" title="Text color" onClick={() => {}} />
             <ToolBtn label={<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} title="Image" onClick={() => {}} />
             <ToolBtn label="···" title="More" onClick={() => {}} />
@@ -326,7 +334,7 @@ Uniform Motion: When an object covers equal distances in equal intervals of time
                   );
                   if (block.type === "key-point") return (
                     <div key={i} className="key-point mb-5 flex items-start gap-2">
-                      <span className="text-amber-500 mt-0.5">🔑</span>
+                      <KeyRound className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
                       <p>{block.text}</p>
                     </div>
                   );
@@ -344,7 +352,8 @@ Uniform Motion: When an object covers equal distances in equal intervals of time
                     <div className="mb-8 rounded-2xl overflow-hidden border border-paper-border shadow-sm bg-white">
                       <div className="bg-paper-warm px-4 py-2.5 border-b border-paper-border flex justify-between items-center bg-paper-warm/50">
                         <span className="text-xs font-bold text-ink-secondary uppercase tracking-wider flex items-center gap-1.5">
-                          <span>🖼️</span> Original Note Scan
+                          <ImageIcon className="w-3.5 h-3.5 text-accent" />
+                          <span>Original Note Scan</span>
                         </span>
                         <a
                           href={chapter.photoUrl}
@@ -370,8 +379,9 @@ Uniform Motion: When an object covers equal distances in equal intervals of time
 
                   <div className="border-b border-paper-border pb-4 mb-4">
                     <h1 className="text-3xl font-extrabold text-ink mb-1">{chapter.name || "Study Notes"}</h1>
-                    <p className="text-xs text-ink-tertiary">
-                      ✨ AI Transcribed study notes from your uploaded image
+                    <p className="text-xs text-ink-tertiary flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-accent" />
+                      <span>AI Transcribed study notes from your uploaded image</span>
                     </p>
                   </div>
 
@@ -388,8 +398,8 @@ Uniform Motion: When an object covers equal distances in equal intervals of time
                       if (region.region_type === "definition") {
                         return (
                           <div key={region.id || i} className="definition-box my-4 p-5 border-l-4 border-accent bg-accent/5 rounded-r-2xl shadow-sm">
-                            <p className="font-bold text-ink mb-1 flex items-center gap-1">
-                              <span>🔑</span>
+                            <p className="font-bold text-ink mb-1 flex items-center gap-1.5">
+                              <KeyRound className="w-4 h-4 text-amber-500 shrink-0" />
                               <span>{region.label || "Key Concept"}</span>
                             </p>
                             <p className="text-sm text-ink-secondary leading-relaxed">{region.raw_text}</p>
@@ -418,7 +428,8 @@ Uniform Motion: When an object covers equal distances in equal intervals of time
                         return (
                           <div key={region.id || i} className="my-4 p-5 border border-paper-border bg-paper-warm/40 rounded-2xl shadow-sm">
                             <p className="font-semibold text-purple-700 text-xs mb-2 uppercase tracking-wider flex items-center gap-1.5">
-                              <span>📊</span> Diagram Description: {region.label}
+                              <BarChart3 className="w-3.5 h-3.5" />
+                              <span>Diagram Description: {region.label}</span>
                             </p>
                             <p className="text-sm text-ink-secondary leading-relaxed italic">{region.raw_text}</p>
                           </div>
@@ -443,8 +454,9 @@ Uniform Motion: When an object covers equal distances in equal intervals of time
                       placeholder="Untitled Note"
                       className="text-3xl font-extrabold text-ink bg-transparent outline-none w-full border-none focus:ring-0 p-0"
                     />
-                    <p className="text-xs text-ink-tertiary mt-1">
-                      ✏️ Write your study notes below or scan a notebook photo
+                    <p className="text-xs text-ink-tertiary mt-1 flex items-center gap-1">
+                      <Pencil className="w-3 h-3 text-ink-tertiary" />
+                      <span>Write your study notes below or scan a notebook photo</span>
                     </p>
                   </div>
                   <textarea

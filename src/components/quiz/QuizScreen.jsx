@@ -116,17 +116,18 @@ export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit
   const advance = (resp) => {
     if (index + 1 >= cards.length) {
       setFinished(true);
-
-      // Persist completed quiz session to Firestore
       const correctCount = (resp || responses).filter((r) => r.correct).length;
+      const score = Math.round((correctCount / cards.length) * 100);
+
+      // Save to Firebase / Supabase
       saveQuizSession({
         id: `quiz_${Date.now()}`,
         deckId: deck.id || "deck_custom",
-        scorePercent: Math.round((correctCount / cards.length) * 100),
+        scorePercent: score,
         startedAt: new Date(),
         completedAt: new Date(),
         responses: resp || responses,
-      }).catch((e) => console.warn("Failed to persist quiz session:", e));
+      }).catch((e) => console.warn("Failed to record quiz session:", e));
     } else {
       setIndex(index + 1);
       setFlipped(false);
@@ -173,7 +174,13 @@ export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 bg-paper-warm/95 backdrop-blur-md animate-fade-in text-ink overflow-y-auto">
         <div className="w-full max-w-md text-center my-auto">
           <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-accent/10 border border-accent/20 shadow-card">
-            <span className="text-3xl">{pct >= 80 ? "🎉" : pct >= 50 ? "👍" : "💪"}</span>
+            {pct >= 80 ? (
+              <Trophy className="w-10 h-10 text-amber-500" />
+            ) : pct >= 50 ? (
+              <ThumbsUp className="w-10 h-10 text-emerald-500" />
+            ) : (
+              <Award className="w-10 h-10 text-accent" />
+            )}
           </div>
           <h2 className="text-2xl font-bold text-ink">Quiz Complete!</h2>
           <p className="mt-2 text-ink-secondary">{deck.title}</p>
@@ -184,13 +191,6 @@ export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit
           </div>
 
           <div className="mt-8 flex gap-3">
-            <button
-              id="quiz-retry-btn"
-              onClick={() => { setIndex(0); setResponses([]); setFlipped(false); setFinished(false); }}
-              className="flex-1 rounded-xl border border-paper-border bg-white px-4 py-3 text-sm font-semibold text-ink hover:bg-paper-warm transition-colors shadow-sm"
-            >
-              Retry
-            </button>
             <button
               id="quiz-exit-btn"
               onClick={onExit}
@@ -206,7 +206,6 @@ export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-paper-warm text-ink animate-fade-in overflow-y-auto">
-      {/* Immersive Top Bar */}
       <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-paper-border bg-white/90 px-6 backdrop-blur-md">
         <button
           id="quiz-back-btn"
@@ -219,7 +218,6 @@ export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit
           Exit Quiz
         </button>
 
-        {/* Center: Title & Progress Bar */}
         <div className="flex flex-col items-center gap-1">
           <div className="flex items-center gap-2">
             <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -240,19 +238,15 @@ export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit
           </div>
         </div>
 
-        {/* Right: Card Type Badge */}
         <span className="hidden sm:inline-flex rounded-lg border border-paper-border bg-paper-warm px-3 py-1 text-xs font-semibold text-ink-secondary">
           {card.card_type.replace("_", " ")}
         </span>
       </header>
 
-      {/* Main Focus Area */}
       <main className="flex flex-1 flex-col items-center justify-center p-4 md:p-8 max-w-3xl mx-auto w-full">
         <div className="w-full flex flex-col justify-center my-auto">
-          {/* Card Container */}
           <CardRenderer key={card.id || index} card={card} onFlipped={(f) => setFlipped(f)} />
 
-          {/* Action Buttons — shown after flip */}
           {flipped ? (
             <div className="mt-8 flex gap-4 animate-slide-up max-w-md mx-auto w-full">
               <button
@@ -260,19 +254,22 @@ export default function QuizScreen({ deck, cards, regions = [], photoUrl, onExit
                 onClick={() => recordResponse(false)}
                 className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-5 py-3.5 text-sm font-semibold text-red-700 hover:bg-red-100 hover:border-red-300 shadow-sm transition-all"
               >
-                <span>✗</span> Need Help / Wrong
+                <X className="w-4 h-4 text-red-600" />
+                <span>Need Help / Wrong</span>
               </button>
               <button
                 id="quiz-got-it-btn"
                 onClick={() => recordResponse(true)}
                 className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm transition-all"
               >
-                <span>✓</span> Got It!
+                <Check className="w-4 h-4 text-emerald-600" />
+                <span>Got It!</span>
               </button>
             </div>
           ) : (
-            <p className="mt-6 text-center text-xs text-ink-tertiary animate-pulse">
-              💡 Tap or click anywhere on the card to flip and check answer
+            <p className="mt-6 text-center text-xs text-ink-tertiary flex items-center justify-center gap-1.5 animate-pulse">
+              <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+              <span>Tap or click anywhere on the card to flip and check answer</span>
             </p>
           )}
         </div>

@@ -3,6 +3,7 @@ import { FIREBASE_CONFIGURED } from "./lib/firebase";
 import { SUPABASE_CONFIGURED } from "./lib/supabase";
 import ResponsiveShell from "./components/layout/ResponsiveShell";
 import { useOffline } from "./hooks/useOffline";
+import { WifiOff } from "./components/ui/Icons";
 
 // ── Demo Mode (no Firebase/Supabase keys) ─────────────────────────────────────
 // Renders without auth — the NavContext inside ResponsiveShell handles routing,
@@ -13,7 +14,7 @@ function DemoApp() {
     <div className="min-h-screen bg-paper text-ink">
       {isOffline && (
         <div className="fixed top-0 inset-x-0 z-50 flex items-center justify-center gap-2 bg-amber-100 border-b border-amber-200 py-2 px-4 text-amber-800 text-xs font-medium">
-          <span>📴</span>
+          <WifiOff className="w-3.5 h-3.5" />
           <span>Offline mode — studying cached content</span>
         </div>
       )}
@@ -45,7 +46,7 @@ function AuthenticatedApp() {
     <div className="min-h-screen bg-paper text-ink">
       {isOffline && (
         <div className="fixed top-0 inset-x-0 z-50 flex items-center justify-center gap-2 bg-amber-100 border-b border-amber-200 py-2 px-4 text-amber-800 text-xs font-medium">
-          <span>📴</span>
+          <WifiOff className="w-3.5 h-3.5" />
           <span>Offline mode — studying cached content</span>
         </div>
       )}

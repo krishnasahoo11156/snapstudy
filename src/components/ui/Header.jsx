@@ -4,6 +4,7 @@ import { auth } from "../../lib/firebase";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase, SUPABASE_CONFIGURED } from "../../lib/supabase";
 import { useNav } from "../../context/NavContext";
+import { Flame, FileText, Camera, Palette, Lock } from "./Icons";
 
 export default function Header({ showSearch = true }) {
   const { navigate } = useNav();
@@ -114,11 +115,11 @@ export default function Header({ showSearch = true }) {
               <p className="text-xs font-semibold text-ink-tertiary uppercase tracking-wider mb-3">Notifications</p>
               <div className="space-y-3">
                 {[
-                  { icon: "🔥", text: "You're on a 7-day streak! Keep going.", time: "Just now" },
-                  { icon: "📝", text: "Notes and flashcards ready to study.", time: "Recent" },
+                  { icon: <Flame className="w-4 h-4 text-orange-500 fill-orange-500 shrink-0" />, text: "You're on a 7-day streak! Keep going.", time: "Just now" },
+                  { icon: <FileText className="w-4 h-4 text-blue-500 shrink-0" />, text: "Notes and flashcards ready to study.", time: "Recent" },
                 ].map((n, i) => (
                   <div key={i} className="flex gap-3 items-start p-2.5 rounded-xl hover:bg-paper-warm cursor-pointer">
-                    <span className="text-lg">{n.icon}</span>
+                    <div className="mt-0.5">{n.icon}</div>
                     <div>
                       <p className="text-sm text-ink leading-snug">{n.text}</p>
                       <p className="text-xs text-ink-tertiary mt-0.5">{n.time}</p>
@@ -137,7 +138,7 @@ export default function Header({ showSearch = true }) {
           title="Upload or Scan Notes"
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-paper-border bg-white text-xs font-semibold text-ink hover:bg-paper-warm transition-colors shadow-sm ml-1"
         >
-          <span>📸</span>
+          <Camera className="w-3.5 h-3.5 text-accent" />
           <span className="hidden sm:inline">Scan Notes</span>
         </button>
 
@@ -183,14 +184,14 @@ export default function Header({ showSearch = true }) {
                   onClick={() => { setProfileOpen(false); navigate("canvas"); }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-ink hover:bg-paper-warm transition-colors text-left"
                 >
-                  <span>🎨</span>
+                  <Palette className="w-4 h-4 text-purple-600" />
                   <span>My Study Canvas</span>
                 </button>
                 <button
                   onClick={() => { setProfileOpen(false); navigate("capture-image"); }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-ink hover:bg-paper-warm transition-colors text-left"
                 >
-                  <span>📷</span>
+                  <Camera className="w-4 h-4 text-blue-600" />
                   <span>Capture & Ingest Notes</span>
                 </button>
 
@@ -211,7 +212,7 @@ export default function Header({ showSearch = true }) {
                     onClick={() => { setProfileOpen(false); navigate("login"); }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-accent hover:bg-accent/10 transition-colors text-left"
                   >
-                    <span>🔐</span>
+                    <Lock className="w-4 h-4 text-accent" />
                     <span>Sign In / Create Account</span>
                   </button>
                 )}
