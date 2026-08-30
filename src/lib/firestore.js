@@ -1,4 +1,4 @@
-import { doc, setDoc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, setDoc, getDoc, deleteDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { db, FIREBASE_CONFIGURED } from "./firebase";
 
 const LOCAL_STORAGE_PHOTOS_KEY = "snapstudy_cached_photos";
@@ -90,6 +90,35 @@ export async function getPhotoRecord(id) {
     return cached.find((r) => r.id === id) || null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Delete a photo record and its associated cards by ID.
+ * Removes from localStorage and Cloud Firestore.
+ *
+ * @param {string} id
+ * @param {string} [uid]
+ * @returns {Promise<void>}
+ */
+export async function deletePhotoRecord(id, uid) {
+  // 1. Remove from local storage cache
+  try {
+    const existing = JSON.parse(localStorage.getItem(LOCAL_STORAGE_PHOTOS_KEY) || "[]");
+    const updated = existing.filter((p) => p.id !== id);
+    localStorage.setItem(LOCAL_STORAGE_PHOTOS_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.warn("Failed to remove photo record locally:", e);
+  }
+
+  // 2. Remove from Cloud Firestore
+  if (FIREBASE_CONFIGURED && db && id) {
+    try {
+      const docRef = doc(db, "photos", id);
+      await deleteDoc(docRef);
+    } catch (err) {
+      console.warn("[Firestore] Failed to delete photo record from cloud:", err);
+    }
   }
 }
 

@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "../../lib/firebase";
 import { compressImage, uploadPhotoToStorage } from "../../lib/storage";
-import { savePhotoRecord } from "../../lib/firestore";
+import { savePhotoRecord, deletePhotoRecord } from "../../lib/firestore";
 import { api, isMockMode, setMockMode } from "../../lib/api-client";
 import RegionOverlay, { REGION_COLORS } from "../region-overlay/RegionOverlay";
 import QuizScreen from "../quiz/QuizScreen";
@@ -31,6 +31,8 @@ export default function CaptureScreen() {
   const [detectedRegions, setDetectedRegions] = useState([]);
   const [generatedCards, setGeneratedCards] = useState([]);
   const [selectedRegionId, setSelectedRegionId] = useState(null);
+  const [currentPhotoId, setCurrentPhotoId] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [useMock, setUseMock] = useState(isMockMode());
 
   const [quizActive, setQuizActive] = useState(false);
@@ -102,6 +104,7 @@ export default function CaptureScreen() {
       // 3. Persist to Firestore / Local Cache
       setCurrentStep("Saving photo and cards to your study deck…");
       const photoId = `photo_${Date.now()}`;
+      setCurrentPhotoId(photoId);
       const record = {
         id: photoId,
         uid,
@@ -143,8 +146,21 @@ export default function CaptureScreen() {
     setDetectedRegions([]);
     setGeneratedCards([]);
     setSelectedRegionId(null);
+    setCurrentPhotoId(null);
+    setShowDeleteConfirm(false);
     setErrorMessage("");
     if (inputRef.current) inputRef.current.value = "";
+  };
+
+  const handleDeleteCurrentNote = async () => {
+    try {
+      if (currentPhotoId) {
+        await deletePhotoRecord(currentPhotoId, user?.uid);
+      }
+      handleReset();
+    } catch (err) {
+      console.error("Failed to delete note:", err);
+    }
   };
 
   return (
@@ -309,10 +325,57 @@ export default function CaptureScreen() {
                 onClick={handleReset}
                 className="rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-xs font-medium text-slate-300 hover:bg-slate-700 transition"
               >
-                Scan Another Note
+                Scan Another
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                title="Delete this note"
+                className="flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 hover:bg-red-500/20 transition"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                </svg>
+                <span>Delete</span>
               </button>
             </div>
           </div>
+
+          {/* Delete Confirmation Modal */}
+          {showDeleteConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-fade-in">
+              <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/20 text-red-400 border border-red-500/30">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                  </svg>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-bold text-slate-100">Delete This Scanned Note?</h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    This will discard this note photo and delete all {generatedCards.length} generated flashcards.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteCurrentNote}
+                    className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-red-600/30 hover:bg-red-500 transition"
+                  >
+                    Delete Note
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Grid Layout: Region Overlay on Left, Flashcards on Right */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
