@@ -1,9 +1,17 @@
 import { useState } from "react";
 import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, googleProvider } from "../../lib/firebase";
+import { useNav } from "../../context/NavContext";
 
-export default function AuthScreen() {
-  const [mode, setMode] = useState("signin"); // "signin" | "signup"
+/**
+ * AuthScreen — Login + Signup in a minimal white card.
+ * Apple-quality onboarding aesthetic.
+ * All Firebase auth logic preserved from original.
+ */
+export default function AuthScreen({ initialMode = "signin" }) {
+  const { navigate } = useNav();
+  const [mode, setMode] = useState(initialMode); // "signin" | "signup"
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -14,6 +22,7 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       await signInWithPopup(auth, googleProvider);
+      navigate("canvas");
     } catch (err) {
       setError(err.message || "Google sign-in failed.");
     } finally {
@@ -31,6 +40,7 @@ export default function AuthScreen() {
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
+      navigate("canvas");
     } catch (err) {
       setError(err.message || "Authentication failed.");
     } finally {
@@ -38,37 +48,50 @@ export default function AuthScreen() {
     }
   };
 
+  // Demo mode: skip auth entirely
+  const handleDemoSkip = () => navigate("canvas");
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-900 p-4">
-      {/* Background glow */}
+    <div className="min-h-screen bg-paper-warm flex items-center justify-center p-4">
+      {/* Subtle background blobs */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-blue-600/20 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-violet-600/20 blur-3xl" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-note-yellow opacity-30 blur-3xl -translate-y-1/2" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 rounded-full bg-note-lavender opacity-30 blur-3xl translate-y-1/2" />
       </div>
 
-      <div className="relative w-full max-w-md animate-fade-in">
+      <div className="relative w-full max-w-md animate-scale-in">
+        {/* Back to landing */}
+        <button
+          onClick={() => navigate("landing")}
+          className="flex items-center gap-1.5 text-sm text-ink-secondary hover:text-ink mb-6 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+          </svg>
+          Back
+        </button>
+
         {/* Logo */}
-        <div className="mb-8 text-center">
-          <div className="mb-3 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-violet-600 shadow-lg shadow-blue-500/25">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+        <div className="text-center mb-8">
+          <div className="w-14 h-14 mx-auto bg-ink rounded-2xl flex items-center justify-center mb-3 shadow-sm">
+            <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16 4H8a2 2 0 00-2 2v14l6-3 6 3V6a2 2 0 00-2-2z"/>
             </svg>
           </div>
-          <h1 className="text-3xl font-bold gradient-text">SnapStudy</h1>
-          <p className="mt-1 text-slate-400 text-sm">
-            Photo → Flashcards → Mastery
+          <h1 className="text-2xl font-bold text-ink">StudySnap</h1>
+          <p className="text-sm text-ink-tertiary mt-1">
+            {mode === "signup" ? "Create your account" : "Welcome back"}
           </p>
         </div>
 
         {/* Card */}
-        <div className="glass-card rounded-2xl p-8">
+        <div className="bg-white rounded-3xl border border-paper-border shadow-card p-8">
           {/* Google Sign-in */}
           <button
             id="auth-google-btn"
             onClick={handleGoogle}
             disabled={loading}
-            className="mb-6 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-600 bg-white/5 px-4 py-3 text-sm font-medium text-slate-200 transition-all hover:bg-white/10 hover:border-slate-500 disabled:opacity-50"
+            className="mb-5 flex w-full items-center justify-center gap-3 rounded-2xl border border-paper-border px-4 py-3 text-sm font-medium text-ink transition-all hover:bg-paper-warm hover:border-ink-light disabled:opacity-50"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -80,46 +103,61 @@ export default function AuthScreen() {
           </button>
 
           {/* Divider */}
-          <div className="mb-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-slate-700" />
-            <span className="text-xs text-slate-500">or</span>
-            <div className="h-px flex-1 bg-slate-700" />
+          <div className="mb-5 flex items-center gap-3">
+            <div className="h-px flex-1 bg-paper-border" />
+            <span className="text-xs text-ink-tertiary">or</span>
+            <div className="h-px flex-1 bg-paper-border" />
           </div>
 
-          {/* Email/Password Form */}
+          {/* Form */}
           <form onSubmit={handleEmail} className="space-y-4">
+            {mode === "signup" && (
+              <div>
+                <label htmlFor="auth-name" className="block text-xs font-medium text-ink-secondary mb-1.5">
+                  Full name
+                </label>
+                <input
+                  id="auth-name"
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="Your name"
+                  className="w-full rounded-xl border border-paper-border bg-paper-warm px-4 py-3 text-sm text-ink placeholder-ink-tertiary outline-none transition focus:border-accent focus:bg-white focus:ring-1 focus:ring-accent/20"
+                />
+              </div>
+            )}
             <div>
-              <label htmlFor="auth-email" className="mb-1.5 block text-xs font-medium text-slate-400">
+              <label htmlFor="auth-email" className="block text-xs font-medium text-ink-secondary mb-1.5">
                 Email address
               </label>
               <input
                 id="auth-email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={e => setEmail(e.target.value)}
                 required
                 placeholder="you@example.com"
-                className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none ring-0 transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50"
+                className="w-full rounded-xl border border-paper-border bg-paper-warm px-4 py-3 text-sm text-ink placeholder-ink-tertiary outline-none transition focus:border-accent focus:bg-white focus:ring-1 focus:ring-accent/20"
               />
             </div>
             <div>
-              <label htmlFor="auth-password" className="mb-1.5 block text-xs font-medium text-slate-400">
+              <label htmlFor="auth-password" className="block text-xs font-medium text-ink-secondary mb-1.5">
                 Password
               </label>
               <input
                 id="auth-password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={e => setPassword(e.target.value)}
                 required
                 placeholder="••••••••"
                 minLength={6}
-                className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none ring-0 transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50"
+                className="w-full rounded-xl border border-paper-border bg-paper-warm px-4 py-3 text-sm text-ink placeholder-ink-tertiary outline-none transition focus:border-accent focus:bg-white focus:ring-1 focus:ring-accent/20"
               />
             </div>
 
             {error && (
-              <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-2.5 text-xs text-red-400">
+              <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-2.5 text-xs text-red-600">
                 {error}
               </div>
             )}
@@ -128,24 +166,35 @@ export default function AuthScreen() {
               id="auth-email-btn"
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:from-blue-500 hover:to-violet-500 hover:shadow-blue-500/40 disabled:opacity-50"
+              className="w-full rounded-2xl bg-ink px-4 py-3.5 text-sm font-semibold text-white hover:bg-ink/80 disabled:opacity-50 transition-all"
             >
-              {loading ? "Loading…" : mode === "signup" ? "Create account" : "Sign in"}
+              {loading ? "Loading…" : mode === "signup" ? "Create account" : "Continue"}
             </button>
           </form>
 
           {/* Toggle mode */}
-          <p className="mt-5 text-center text-xs text-slate-500">
-            {mode === "signin" ? "New to SnapStudy? " : "Already have an account? "}
+          <p className="mt-5 text-center text-xs text-ink-tertiary">
+            {mode === "signin" ? "Don't have an account? " : "Already have an account? "}
             <button
               id="auth-mode-toggle"
               type="button"
               onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(""); }}
-              className="text-blue-400 hover:text-blue-300 font-medium"
+              className="text-accent font-medium hover:underline"
             >
-              {mode === "signin" ? "Create account" : "Sign in"}
+              {mode === "signin" ? "Sign up" : "Sign in"}
             </button>
           </p>
+        </div>
+
+        {/* Demo skip */}
+        <div className="mt-4 text-center">
+          <button
+            id="auth-demo-skip"
+            onClick={handleDemoSkip}
+            className="text-xs text-ink-tertiary hover:text-ink transition-colors underline underline-offset-2"
+          >
+            Skip for now and explore demo →
+          </button>
         </div>
       </div>
     </div>

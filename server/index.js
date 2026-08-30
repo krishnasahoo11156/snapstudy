@@ -11,6 +11,8 @@ import ingestRouter from "./routes/ingest.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Load from root .env first, then fallback to server-specific .env
+dotenv.config({ path: join(__dirname, "..", ".env") });
 dotenv.config({ path: join(__dirname, ".env") });
 
 const app = express();
